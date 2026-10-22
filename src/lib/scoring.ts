@@ -1,4 +1,4 @@
-import { DEFAULT_KEY, cloneKey } from './config';
+import { DEFAULT_KEY, DEFAULT_SETTINGS, cloneKey } from './config';
 import type {
   AnswerKey,
   AppSettings,
@@ -57,6 +57,40 @@ export interface ScanScore {
   totalPossible: number;
 }
 
+export interface UnresolvedCell {
+  set: SetId;
+  cell: CellResult;
+}
+
+/**
+ * A cell is unresolved until the teacher explicitly confirms it. Low-confidence
+ * and obstructed readings are never treated as final just because the model
+ * emitted a digit.
+ */
+export function cellNeedsConfirmation(cell: CellResult): boolean {
+  if (cell.confirmed || cell.corrected) return false;
+  return cell.state === 'uncertain' || cell.state === 'obstructed';
+}
+
+/** The unresolved cells in a stable set/row order. */
+export function unresolvedCells(scan: ScanResult): UnresolvedCell[] {
+  const out: UnresolvedCell[] = [];
+  for (const set of SET_IDS) {
+    for (const cell of scan.sets[set].cells) {
+      if (cellNeedsConfirmation(cell)) out.push({ set, cell });
+    }
+  }
+  return out;
+}
+
+export function countUnresolved(scan: ScanResult): number {
+  return unresolvedCells(scan).length;
+}
+
+export function isScanFinalized(scan: ScanResult): boolean {
+  return countUnresolved(scan) === 0;
+}
+
 /** Score a full answer sheet. */
 export function scoreScan(cells: Record<SetId, CellResult[]>, key: AnswerKey, blankPolicy: BlankPolicy): ScanScore {
   const sets = {} as Record<SetId, SetResult>;
@@ -102,6 +136,7 @@ export function correctCell(
           ...cell,
           digit,
           corrected: true,
+          confirmed: true,
           state: digit == null ? ('blank' as const) : ('answered' as const),
           confidence: digit == null ? 0 : 1,
           margin: digit == null ? 0 : 1,
@@ -117,7 +152,11 @@ export function correctCell(
   if (settings?.confidenceThreshold == null && settings?.marginThreshold == null) return rescored;
   return {
     ...rescored,
-    sets: markUncertain(rescored.sets, settings.confidenceThreshold ?? 0.7, settings.marginThreshold ?? 0.35),
+    sets: markUncertain(
+      rescored.sets,
+      settings.confidenceThreshold ?? DEFAULT_SETTINGS.confidenceThreshold,
+      settings.marginThreshold ?? DEFAULT_SETTINGS.marginThreshold,
+    ),
   };
 }
 
@@ -132,7 +171,14 @@ export function markUncertain(
     out[set] = {
       ...result,
       cells: result.cells.map((cell) => {
-        if (cell.corrected || cell.state === 'blank' || cell.state === 'obstructed') return cell;
+        if (
+          cell.confirmed ||
+          cell.corrected ||
+          cell.state === 'blank' ||
+          cell.state === 'obstructed'
+        ) {
+          return cell;
+        }
         if (cell.digit == null) return cell;
         const uncertain = cell.confidence < confidenceThreshold || cell.margin < marginThreshold;
         return uncertain ? { ...cell, state: 'uncertain' as const } : cell;

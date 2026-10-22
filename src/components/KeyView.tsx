@@ -2,10 +2,15 @@ import { useRef } from 'react';
 import type { AnswerKey, AppSettings, BlankPolicy, SetId } from '../types';
 import { SET_IDS } from '../types';
 import { blankPolicyLabel } from '../lib/scoring';
+import {
+  VALIDATED_CONFIDENCE_THRESHOLD,
+  VALIDATED_MARGIN_THRESHOLD,
+} from '../lib/config';
 
 export function KeyView({
   answerKey,
   settings,
+  onBack,
   onChange,
   onReset,
   onImport,
@@ -14,6 +19,7 @@ export function KeyView({
 }: {
   answerKey: AnswerKey;
   settings: AppSettings;
+  onBack?: () => void;
   onChange: (set: SetId, index: number, value: number) => void;
   onReset: () => void;
   onImport: (file: File) => void;
@@ -35,6 +41,11 @@ export function KeyView({
           </p>
         </div>
         <div className="page-actions">
+          {onBack && (
+            <button className="btn btn-ghost" onClick={onBack}>
+              Back to scanner
+            </button>
+          )}
           <button className="btn btn-ghost" onClick={onExport}>
             Export key
           </button>
@@ -111,7 +122,11 @@ export function KeyView({
           <div className="settings-row">
             <div className="grow">
               <strong>Blank answers</strong>
-              <p>{blankPolicyLabel(settings.blankPolicy)}. Obstructed cells are never silently counted as wrong.</p>
+              <p>
+                {blankPolicyLabel(settings.blankPolicy)}. The large Set scores always use /12 and
+                the total uses /60; any blank-adjusted maximum is shown as a note on the result.
+                Obstructed cells are never silently counted as wrong.
+              </p>
             </div>
             <div className="segmented">
               {policies.map((policy) => (
@@ -126,19 +141,42 @@ export function KeyView({
             </div>
           </div>
 
+          <div className="settings-validation">
+            <strong>Validated confirmation gate</strong>
+            <p>
+              On the 60 hand-labeled reference cells, the{' '}
+              {Math.round(VALIDATED_CONFIDENCE_THRESHOLD * 100)}% /{' '}
+              {Math.round(VALIDATED_MARGIN_THRESHOLD * 100)}% gate auto-accepted 39 cells with zero
+              misreads and left 21 to confirm, including all 7 misreads. The tiny-box safeguard can
+              add one more review. A 95% confidence gate would silently accept one misread, so the
+              default is deliberately not lower.
+            </p>
+            <button
+              className="btn btn-sm btn-outline"
+              onClick={() =>
+                onSettingsChange({
+                  confidenceThreshold: VALIDATED_CONFIDENCE_THRESHOLD,
+                  marginThreshold: VALIDATED_MARGIN_THRESHOLD,
+                })
+              }
+            >
+              Use validated gate
+            </button>
+          </div>
+
           <div className="settings-row">
             <div className="grow">
-              <strong>Low-confidence threshold</strong>
+              <strong>Confidence gate</strong>
               <p>
-                Answers below {Math.round(settings.confidenceThreshold * 100)}% confidence are
-                flagged for review. This does not change the score.
+                Answers below {Math.round(settings.confidenceThreshold * 100)}% confidence need
+                confirmation. They are never scored from the model's tentative digit.
               </p>
             </div>
             <input
               type="range"
               min={0.3}
-              max={0.95}
-              step={0.05}
+              max={0.99}
+              step={0.01}
               value={settings.confidenceThreshold}
               onChange={(event) =>
                 onSettingsChange({ confidenceThreshold: Number(event.target.value) })
@@ -150,15 +188,15 @@ export function KeyView({
             <div className="grow">
               <strong>Confusion margin</strong>
               <p>
-                Flag when the top two digits are within {Math.round(settings.marginThreshold * 100)}%
-                of each other.
+                Also flag when the gap between the top two digits is below{' '}
+                {Math.round(settings.marginThreshold * 100)} percentage points.
               </p>
             </div>
             <input
               type="range"
               min={0.1}
-              max={0.8}
-              step={0.05}
+              max={0.99}
+              step={0.01}
               value={settings.marginThreshold}
               onChange={(event) => onSettingsChange({ marginThreshold: Number(event.target.value) })}
             />
@@ -180,7 +218,7 @@ export function KeyView({
           <div className="settings-row">
             <div className="grow">
               <strong>Duplicate-sheet guard</strong>
-              <p>Skip a capture that perceptually matches a sheet already in this session.</p>
+              <p>Skip a file that perceptually matches another sheet in the same batch. A new scan starts a clean session, so intentional rescans are allowed.</p>
             </div>
             <button
               className={`switch ${settings.duplicateGuard ? 'on' : ''}`}

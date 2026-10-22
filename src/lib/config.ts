@@ -9,10 +9,23 @@ export const DEFAULT_KEY: AnswerKey = {
   E: [7, 6, 8, 2, 1, 5, 1, 6, 3, 2, 4, 5],
 };
 
+/**
+ * Gate calibrated on the 60 hand-labeled cells in the reference sheet.
+ *
+ * With 96% confidence and a 90% margin, the gate auto-accepted 39 cells with
+ * zero misreads and flagged all 7 misreads. The tiny-box safeguard can add one
+ * more confirmation (B5), which is why the full Node crop pipeline reports
+ * 38 accepted / 22 flagged. Dropping confidence to 95% would auto-accept one
+ * misread (C1, an 8 read as 7 at 95.3%), so 96% is the lowest round gate
+ * supported by that validation set.
+ */
+export const VALIDATED_CONFIDENCE_THRESHOLD = 0.96;
+export const VALIDATED_MARGIN_THRESHOLD = 0.9;
+
 export const DEFAULT_SETTINGS: AppSettings = {
   blankPolicy: 'wrong',
-  confidenceThreshold: 0.7,
-  marginThreshold: 0.35,
+  confidenceThreshold: VALIDATED_CONFIDENCE_THRESHOLD,
+  marginThreshold: VALIDATED_MARGIN_THRESHOLD,
   autoCapture: true,
   duplicateGuard: true,
 };

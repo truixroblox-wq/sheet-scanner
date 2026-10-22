@@ -126,6 +126,23 @@ export function meanDifference(a: Uint8ClampedArray, b: Uint8ClampedArray): numb
   return sum / length;
 }
 
+/**
+ * Serialize a cropped cell for the confirmation UI. The crop stays in memory as
+ * a local data URL; it is never uploaded or persisted to storage.
+ */
+export function imageDataToDataUrl(image: ImageData): string | undefined {
+  if (typeof document === 'undefined') return undefined;
+  const canvas = document.createElement('canvas');
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return undefined;
+  const copy = ctx.createImageData(image.width, image.height);
+  copy.data.set(image.data);
+  ctx.putImageData(copy, 0, 0);
+  return canvas.toDataURL('image/png');
+}
+
 export function downloadJson(filename: string, value: unknown): void {
   const blob = new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);

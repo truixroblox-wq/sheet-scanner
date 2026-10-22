@@ -7,16 +7,27 @@ import {
   cloneKey,
   validateKey,
 } from './lib/config';
-import { downloadJson, dHash, fileToCanvas, hammingDistance } from './lib/image';
-import { applyCorrections, correctCell, resetKey } from './lib/scoring';
+import { downloadJson, dHash, fileToCanvas } from './lib/image';
+import { findDuplicateSheet } from './lib/duplicates';
+import {
+  applyCorrections,
+  correctCell,
+  countUnresolved,
+  resetKey,
+} from './lib/scoring';
 import { scanSheet } from './lib/vision/scan';
-import type { AnswerKey, AppSettings, ScanResult, SetId } from './types';
+import type {
+  AnswerKey,
+  AppSettings,
+  ScanProgress,
+  ScanResult,
+  SetId,
+} from './types';
 import { SET_IDS } from './types';
 import { ScanView, type QueueItem } from './components/ScanView';
-import { ReviewView } from './components/ReviewView';
 import { KeyView } from './components/KeyView';
 
-type Tab = 'scan' | 'review' | 'key';
+type View = 'scan' | 'settings';
 
 function loadKey(): AnswerKey {
   try {
@@ -36,11 +47,23 @@ function loadSettings(): AppSettings {
     const raw = localStorage.getItem(SETTINGS_STORAGE);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<AppSettings>;
+      // The previous build stored the unvalidated 0.70 / 0.35 gate. Upgrade that
+      // exact legacy pair so existing browsers pick up the validated default.
+      const legacyGate =
+        Number(parsed.confidenceThreshold) === 0.7 && Number(parsed.marginThreshold) === 0.35;
       return {
         ...DEFAULT_SETTINGS,
         ...parsed,
-        confidenceThreshold: clamp(Number(parsed.confidenceThreshold) || 0.7, 0.3, 0.95),
-        marginThreshold: clamp(Number(parsed.marginThreshold) || 0.35, 0.1, 0.8),
+        confidenceThreshold: legacyGate
+          ? DEFAULT_SETTINGS.confidenceThreshold
+          : clamp(
+              Number(parsed.confidenceThreshold) || DEFAULT_SETTINGS.confidenceThreshold,
+              0.3,
+              0.99,
+            ),
+        marginThreshold: legacyGate
+          ? DEFAULT_SETTINGS.marginThreshold
+          : clamp(Number(parsed.marginThreshold) || DEFAULT_SETTINGS.marginThreshold, 0.1, 0.99),
       };
     }
   } catch {
@@ -54,14 +77,14 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('scan');
+  const [view, setView] = useState<View>('scan');
   const [answerKey, setAnswerKey] = useState<AnswerKey>(loadKey);
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const [scans, setScans] = useState<ScanResult[]>([]);
-  const [latestId, setLatestId] = useState<string | null>(null);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [currentId, setCurrentId] = useState<string | null>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<ScanProgress | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const scansRef = useRef(scans);
@@ -70,7 +93,6 @@ export default function App() {
   const nextNumberRef = useRef(1);
   const fileQueueRef = useRef<{ file: File; queueId: string; scanNumber: number }[]>([]);
   const processingRef = useRef(false);
-  const ignoreDuplicateOnceRef = useRef(false);
 
   useEffect(() => {
     localStorage.setItem(KEY_STORAGE, JSON.stringify(answerKey));
@@ -96,12 +118,12 @@ export default function App() {
 
   useEffect(() => {
     if (!notice) return;
-    const timer = window.setTimeout(() => setNotice(null), 3800);
+    const timer = window.setTimeout(() => setNotice(null), 4200);
     return () => window.clearTimeout(timer);
   }, [notice]);
 
   // Scores and confidence flags are derived from the raw readings, so changing
-  // the key or settings rescored every sheet without mutating stored results.
+  // the key or settings rescores every sheet without mutating stored results.
   const scoredScans = useMemo(
     () =>
       scans.map((scan) => {
@@ -114,31 +136,52 @@ export default function App() {
     [scans, answerKey, settings],
   );
 
+  const currentScan = useMemo(
+    () => scoredScans.find((scan) => scan.id === currentId) ?? null,
+    [scoredScans, currentId],
+  );
+
   const updateQueue = useCallback((id: string, patch: Partial<QueueItem>) => {
     setQueue((previous) => previous.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  }, []);
+
+  /**
+   * Every new individual scan and every new batch starts a clean session. This
+   * hides the previous score while scanning and means a deliberate rescan of the
+   * same image is not mistaken for a duplicate of the previous sheet.
+   */
+  const beginScanSession = useCallback(() => {
+    scansRef.current = [];
+    fileQueueRef.current = [];
+    nextNumberRef.current = 1;
+    setScans([]);
+    setCurrentId(null);
+    setQueue([]);
   }, []);
 
   const addScan = useCallback((scan: ScanResult) => {
     scansRef.current = [scan, ...scansRef.current];
     setScans((previous) => [scan, ...previous]);
-    setLatestId(scan.id);
+    setCurrentId(scan.id);
   }, []);
 
   const isDuplicate = useCallback((hash: string): boolean => {
-    if (!settingsRef.current.duplicateGuard) return false;
-    return scansRef.current.some((scan) => hammingDistance(scan.imageHash, hash) <= 5);
+    return (
+      findDuplicateSheet(scansRef.current, hash, settingsRef.current.duplicateGuard) !== undefined
+    );
   }, []);
 
   const runCanvas = useCallback(
-    async (canvas: HTMLCanvasElement, scanNumber: number, force = false): Promise<ScanResult | null> => {
+    async (canvas: HTMLCanvasElement, scanNumber: number): Promise<ScanResult | null> => {
       const hash = dHash(canvas);
-      if (!force && isDuplicate(hash)) return null;
+      if (isDuplicate(hash)) return null;
       const scan = await scanSheet({
         canvas,
         imageHash: hash,
         scanNumber,
         settings: settingsRef.current,
         key: keyRef.current,
+        onProgress: setProgress,
       });
       addScan(scan);
       return scan;
@@ -146,27 +189,31 @@ export default function App() {
     [addScan, isDuplicate],
   );
 
-  // The queue drains itself recursively; the React Compiler lint rule cannot
-  // preserve this manual memoization, but the callback is intentionally stable.
+  // The queue drains itself recursively. Each file is a separate result; scores
+  // from different sheets are never merged.
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const processQueue = useCallback(async () => {
     if (processingRef.current) return;
     const next = fileQueueRef.current.shift();
-    if (!next) return;
+    if (!next) {
+      setBusy(false);
+      setProgress(null);
+      return;
+    }
     processingRef.current = true;
     setBusy(true);
-    updateQueue(next.queueId, { status: 'processing', message: 'Reading table…' });
+    updateQueue(next.queueId, { status: 'processing', message: 'Reading image…' });
+    setProgress({ stage: 'preparing', label: 'Reading the image', completed: 0, total: 60 });
     try {
       const canvas = await fileToCanvas(next.file);
-      const force = ignoreDuplicateOnceRef.current;
-      ignoreDuplicateOnceRef.current = false;
-      const scan = await runCanvas(canvas, next.scanNumber, force);
+      const scan = await runCanvas(canvas, next.scanNumber);
       if (!scan) {
-        updateQueue(next.queueId, { status: 'done', message: 'Duplicate — skipped' });
+        updateQueue(next.queueId, { status: 'done', message: 'Duplicate image — skipped' });
+        setNotice('Duplicate image skipped within this batch. Start a new scan to rescan it.');
       } else {
         updateQueue(next.queueId, {
           status: 'done',
-          message: `${scan.total}/${scan.totalPossible} · ${(scan.durationMs / 1000).toFixed(2)} s`,
+          message: scanQueueMessage(scan),
         });
       }
     } catch (error) {
@@ -175,61 +222,68 @@ export default function App() {
       setNotice(message);
     } finally {
       processingRef.current = false;
-      setBusy(false);
-      void processQueue();
+      if (fileQueueRef.current.length > 0) {
+        void processQueue();
+      } else {
+        setBusy(false);
+        setProgress(null);
+      }
     }
   }, [runCanvas, updateQueue]);
 
   const handleFiles = useCallback(
     (files: File[]) => {
       if (!files.length) return;
+      if (busy || processingRef.current) {
+        setNotice('Finish the current scan before starting a new batch.');
+        return;
+      }
+      beginScanSession();
       const items = files.map((file) => {
         const scanNumber = nextNumberRef.current++;
         const queueId = crypto.randomUUID();
         return { file, scanNumber, queueId };
       });
-      setQueue((previous) => [
-        ...items.map((item) => ({
+      setQueue(
+        items.map((item) => ({
           id: item.queueId,
           scanNumber: item.scanNumber,
           status: 'waiting' as const,
           message: 'Queued',
         })),
-        ...previous,
-      ]);
-      fileQueueRef.current.push(...items);
+      );
+      fileQueueRef.current = items;
       void processQueue();
     },
-    [processQueue],
+    [beginScanSession, busy, processQueue],
   );
 
   const handleCapture = useCallback(
     async (canvas: HTMLCanvasElement) => {
-      if (busy) return;
+      if (busy || processingRef.current) return;
+      beginScanSession();
       const scanNumber = nextNumberRef.current++;
       const queueId = crypto.randomUUID();
-      setQueue((previous) => [
-        { id: queueId, scanNumber, status: 'processing', message: 'Reading table…' },
-        ...previous,
-      ]);
+      setQueue([{ id: queueId, scanNumber, status: 'processing', message: 'Reading image…' }]);
       setBusy(true);
+      setProgress({ stage: 'preparing', label: 'Reading the camera frame', completed: 0, total: 60 });
       try {
-        const force = ignoreDuplicateOnceRef.current;
-        ignoreDuplicateOnceRef.current = false;
-        const scan = await runCanvas(canvas, scanNumber, force);
+        const scan = await runCanvas(canvas, scanNumber);
         if (!scan) {
-          updateQueue(queueId, { status: 'done', message: 'Duplicate — skipped' });
-          setNotice('This sheet is already in the batch. Use Rescan to force a fresh scan.');
+          updateQueue(queueId, { status: 'done', message: 'Duplicate image — skipped' });
+          setNotice('This image matches a sheet already in this batch.');
         } else {
           updateQueue(queueId, {
             status: 'done',
-            message: `${scan.total}/${scan.totalPossible} · ${(scan.durationMs / 1000).toFixed(2)} s`,
+            message: scanQueueMessage(scan),
           });
-          const flagged = Object.values(scan.sets).reduce(
-            (sum, set) => sum + set.cells.filter((c) => c.state === 'uncertain' || c.state === 'obstructed').length,
-            0,
-          );
-          if (flagged > 0) setNotice(`${flagged} answer${flagged === 1 ? '' : 's'} flagged for review.`);
+          const pending = countUnresolved(scan);
+          if (pending > 0) {
+            setNotice(
+              `${pending} answer${pending === 1 ? '' : 's'} need confirmation. ` +
+                'The final score stays locked until each one is reviewed.',
+            );
+          }
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Could not read this sheet.';
@@ -237,40 +291,31 @@ export default function App() {
         setNotice(message);
       } finally {
         setBusy(false);
+        setProgress(null);
       }
     },
-    [busy, runCanvas, updateQueue],
+    [beginScanSession, busy, runCanvas, updateQueue],
   );
 
-  const handleRescan = useCallback(() => {
-    ignoreDuplicateOnceRef.current = true;
-    setLatestId(null);
-    setTab('scan');
-    setNotice('Ready to rescan. Keep the sheet steady in the guide.');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
-
-  const handleNext = useCallback(() => {
-    setLatestId(null);
-    setTab('scan');
+  const handleScanAnother = useCallback(() => {
+    if (busy || processingRef.current) return;
+    beginScanSession();
+    setView('scan');
     setNotice('Ready for the next sheet.');
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
+  }, [beginScanSession, busy]);
 
-  const handleReview = useCallback(
-    (id: string) => {
-      setActiveId(id);
-      setTab('review');
-    },
-    [],
-  );
+  const handleSelectScan = useCallback((id: string) => {
+    setCurrentId(id);
+    setView('scan');
+  }, []);
 
   const handleCorrect = useCallback(
     (set: SetId, row: number, digit: number | null) => {
-      if (!activeId) return;
-      setScans((previous) =>
-        previous.map((scan) =>
-          scan.id === activeId
+      if (!currentId) return;
+      setScans((previous) => {
+        const next = previous.map((scan) =>
+          scan.id === currentId
             ? correctCell(
                 scan,
                 set,
@@ -281,20 +326,24 @@ export default function App() {
                 settingsRef.current,
               )
             : scan,
-        ),
-      );
+        );
+        scansRef.current = next;
+        return next;
+      });
     },
-    [activeId],
+    [currentId],
   );
 
   const handleDelete = useCallback(() => {
-    if (!activeId) return;
-    setScans((previous) => previous.filter((scan) => scan.id !== activeId));
-    if (latestId === activeId) setLatestId(null);
-    setActiveId(null);
-    setTab('scan');
-    setNotice('Scan deleted.');
-  }, [activeId, latestId]);
+    if (!currentId) return;
+    setScans((previous) => {
+      const next = previous.filter((scan) => scan.id !== currentId);
+      scansRef.current = next;
+      return next;
+    });
+    setCurrentId(null);
+    setNotice('Scan result removed.');
+  }, [currentId]);
 
   const handleKeyChange = useCallback((set: SetId, index: number, value: number) => {
     const safe = Number.isFinite(value) ? clamp(Math.round(value), 1, 8) : 1;
@@ -321,113 +370,97 @@ export default function App() {
   }, [answerKey]);
 
   const handleExportScan = useCallback(() => {
-    const scan = scoredScans.find((item) => item.id === activeId);
-    if (!scan) return;
+    if (!currentScan) return;
+    const pending = countUnresolved(currentScan);
+    if (pending > 0) {
+      setNotice(
+        `Confirm ${pending} remaining answer${pending === 1 ? '' : 's'} before exporting the final score.`,
+      );
+      return;
+    }
     const payload = {
-      scanNumber: scan.scanNumber,
-      createdAt: new Date(scan.createdAt).toISOString(),
+      scanNumber: currentScan.scanNumber,
+      createdAt: new Date(currentScan.createdAt).toISOString(),
       sets: Object.fromEntries(
         SET_IDS.map((set) => [
           set,
           {
-            score: scan.sets[set].score,
-            denominator: scan.sets[set].denominator,
-            answers: scan.sets[set].cells.map((cell) => ({
+            score: currentScan.sets[set].score,
+            maximum: 12,
+            blankAdjustedMaximum: currentScan.sets[set].denominator,
+            answers: currentScan.sets[set].cells.map((cell) => ({
               row: cell.row,
               digit: cell.digit,
               state: cell.state,
               confidence: Number(cell.confidence.toFixed(3)),
+              confirmed: Boolean(cell.confirmed || cell.corrected),
             })),
           },
         ]),
       ),
-      total: scan.total,
-      totalPossible: scan.totalPossible,
-      durationMs: Number(scan.durationMs.toFixed(1)),
-      quality: scan.quality,
-      note: 'No student identity is stored. Printed sheet totals were ignored.',
+      total: currentScan.total,
+      totalPossible: 60,
+      blankAdjustedTotalPossible: currentScan.totalPossible,
+      durationMs: Number(currentScan.durationMs.toFixed(1)),
+      quality: currentScan.quality,
+      note: 'No student identity is stored. Printed sheet totals were ignored. Main scores use /12 and /60.',
     };
-    downloadJson(`spm-scan-${scan.scanNumber}.json`, payload);
-  }, [activeId, scoredScans]);
-
-  const latestScan = useMemo(
-    () => scoredScans.find((scan) => scan.id === latestId) ?? null,
-    [scoredScans, latestId],
-  );
-  const activeScan = useMemo(
-    () => scoredScans.find((scan) => scan.id === activeId) ?? null,
-    [scoredScans, activeId],
-  );
-
-  const selectTab = (next: Tab) => {
-    if (next === 'review' && !activeScan && scans.length > 0) {
-      setActiveId(latestId ?? scans[0].id);
-    }
-    setTab(next);
-  };
+    downloadJson(`spm-scan-${currentScan.scanNumber}.json`, payload);
+  }, [currentScan]);
 
   return (
     <div className="app">
       <header className="header">
         <div className="shell header-inner">
           <div className="brand">
-            <div className="brand-mark">SPM</div>
+            <div className="brand-mark" aria-hidden>
+              SPM
+            </div>
             <div>
-              <div className="brand-title">Sheet Scanner</div>
-              <div className="brand-sub">Fast local scoring · Sets A–E</div>
+              <div className="brand-title">SPM Quick Score</div>
+              <div className="brand-sub">Sets A–E · fast local scanning</div>
             </div>
           </div>
-          <nav className="nav" aria-label="Primary">
-            <button className={tab === 'scan' ? 'active' : ''} onClick={() => selectTab('scan')}>
-              Scan
+          <div className="header-actions">
+            <span className="local-badge">
+              <span className="dot" />
+              On-device
+            </span>
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => setView((previous) => (previous === 'scan' ? 'settings' : 'scan'))}
+            >
+              {view === 'settings' ? 'Back to scanner' : 'Answer key & settings'}
             </button>
-            <button className={tab === 'review' ? 'active' : ''} onClick={() => selectTab('review')}>
-              Review{scans.length > 0 ? ` (${scans.length})` : ''}
-            </button>
-            <button className={tab === 'key' ? 'active' : ''} onClick={() => selectTab('key')}>
-              Key & settings
-            </button>
-          </nav>
-          <div className="local-badge">
-            <span className="dot" />
-            100% local
           </div>
         </div>
       </header>
 
       <main className="main">
         <div className="shell">
-          {tab === 'scan' && (
+          {view === 'scan' ? (
             <ScanView
-              latestScan={latestScan}
+              currentScan={currentScan}
               scans={scoredScans}
               queue={queue}
               busy={busy}
+              progress={progress}
               settings={settings}
+              answerKey={answerKey}
               onCapture={handleCapture}
               onFiles={handleFiles}
-              onReview={handleReview}
-              onRescan={handleRescan}
-              onNext={handleNext}
-              onSelectScan={handleReview}
-              onAutoCaptureChange={(value) => setSettings((s) => ({ ...s, autoCapture: value }))}
-            />
-          )}
-          {tab === 'review' && (
-            <ReviewView
-              scan={activeScan}
-              answerKey={answerKey}
+              onScanAnother={handleScanAnother}
+              onSelectScan={handleSelectScan}
               onCorrect={handleCorrect}
-              onBack={() => setTab('scan')}
-              onNext={handleNext}
               onDelete={handleDelete}
               onExport={handleExportScan}
+              onAutoCaptureChange={(value) => setSettings((s) => ({ ...s, autoCapture: value }))}
             />
-          )}
-          {tab === 'key' && (
+          ) : (
             <KeyView
               answerKey={answerKey}
               settings={settings}
+              onBack={() => setView('scan')}
               onChange={handleKeyChange}
               onReset={() => {
                 setAnswerKey(resetKey());
@@ -443,12 +476,12 @@ export default function App() {
 
       <footer className="footer">
         <div className="shell footer-inner">
-          <span>Pure-JS table detection + embedded MNIST CNN · no server requests</span>
-          <span>No student identity · printed totals ignored</span>
+          <span>Runs entirely in this browser · no uploads, accounts, or student records</span>
+          <span>Handwritten student column only · printed totals ignored</span>
         </div>
       </footer>
 
-      {notice && <div className="toast">{notice}</div>}
+      {notice && <div className="toast" role="status">{notice}</div>}
     </div>
   );
 }
@@ -459,7 +492,14 @@ function rescoreThresholds(scan: ScanResult, settings: AppSettings): ScanResult[
     out[set] = {
       ...scan.sets[set],
       cells: scan.sets[set].cells.map((cell) => {
-        if (cell.corrected || cell.state === 'blank' || cell.state === 'obstructed') return cell;
+        if (
+          cell.confirmed ||
+          cell.corrected ||
+          cell.state === 'blank' ||
+          cell.state === 'obstructed'
+        ) {
+          return cell;
+        }
         if (cell.digit == null) return cell;
         const uncertain =
           cell.confidence < settings.confidenceThreshold || cell.margin < settings.marginThreshold;
@@ -468,4 +508,13 @@ function rescoreThresholds(scan: ScanResult, settings: AppSettings): ScanResult[
     };
   }
   return out;
+}
+
+function scanQueueMessage(scan: ScanResult): string {
+  const pending = countUnresolved(scan);
+  const duration = `${(scan.durationMs / 1000).toFixed(2)} s`;
+  if (pending > 0) {
+    return `Needs confirmation · ${pending} answer${pending === 1 ? '' : 's'} · ${duration}`;
+  }
+  return `${scan.total}/60 · ${duration}`;
 }
