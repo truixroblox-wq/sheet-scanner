@@ -1,0 +1,17 @@
+# Netlify build settings for the Vite + React single-page app.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # Vite 7 requires Node.js 20.19+ or 22.12+. Netlify's current Node 22 release
+  # satisfies that requirement.
+  NODE_VERSION = "22"
+
+# The app is a single HTML entry point with tab-based navigation. Serve that
+# entry for unmatched paths so refreshes and direct links do not 404. Existing
+# static files are still served first.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
