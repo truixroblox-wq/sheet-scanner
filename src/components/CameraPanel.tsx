@@ -44,11 +44,13 @@ export function CameraPanel({
   busy,
   autoCapture,
   onAutoCaptureChange,
+  startSignal = 0,
 }: {
   onCapture: (canvas: HTMLCanvasElement) => void;
   busy: boolean;
   autoCapture: boolean;
   onAutoCaptureChange: (value: boolean) => void;
+  startSignal?: number;
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -58,6 +60,7 @@ export function CameraPanel({
   const busyRef = useRef(busy);
   const autoRef = useRef(autoCapture);
   const onCaptureRef = useRef(onCapture);
+  const startSignalRef = useRef(startSignal);
   const [on, setOn] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -124,6 +127,12 @@ export function CameraPanel({
       setStarting(false);
     }
   }, [starting, stop]);
+
+  useEffect(() => {
+    if (startSignal === startSignalRef.current) return;
+    startSignalRef.current = startSignal;
+    void start();
+  }, [startSignal, start]);
 
   const capture = useCallback(() => {
     const video = videoRef.current;
@@ -193,9 +202,9 @@ export function CameraPanel({
         <video ref={videoRef} playsInline muted />
         {!on && (
           <div className="camera-placeholder">
-            <strong>Scan with the camera</strong>
-            Point the rear camera at one complete answer table. Keep all four table edges inside
-            the guide. Nothing leaves this device.
+            <strong>Camera preview</strong>
+            Point the rear camera at one complete answer table. Keep all four table edges inside the
+            guide. Use “Scan answer sheet” above or start the camera here.
           </div>
         )}
         {on && <div className="camera-guide" aria-hidden />}

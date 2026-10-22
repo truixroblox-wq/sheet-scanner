@@ -1,0 +1,30 @@
+{
+  "generatedAt": "2026-10-22T22:04:25.515Z",
+  "sheets": 12,
+  "cells": 719,
+  "hogDimensions": 324,
+  "quantisation": "uint8",
+  "rawBytes": 232956,
+  "base64Bytes": 310608,
+  "sha256": "9a3b339aca15bc2449999d9bff824962be1a6f1cab139666d7b9f79bec285c66",
+  "skippedBlank": 1,
+  "skippedUnextractable": 0,
+  "perSheet": {
+    "reference-set-3-01": 60,
+    "reference-set-3-02": 60,
+    "reference-set-3-03": 59,
+    "reference-set-3-04": 60,
+    "reference-set-3-05": 60,
+    "reference-set-3-06": 60,
+    "reference-set-3-07": 60,
+    "reference-set-3-08": 60,
+    "reference-set-3-09": 60,
+    "reference-set-3-10": 60,
+    "reference-set-3-11": 60,
+    "reference-2": 60
+  },
+  "sources": [
+    "samples/validation/reference-set-3/labels.json",
+    "samples/validation/reference-2-labels.json"
+  ]
+}

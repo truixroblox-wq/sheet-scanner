@@ -1,8 +1,21 @@
-# SPM Sheet Scanner
+# SPM Quick Score Scanner
 
-A fast, fully local browser app for scoring Standard Progressive Matrices answer sheets. It reads the handwritten student column for Sets A–E (12 questions each), scores it against an editable key, and shows only the set scores and total out of 60.
+A fast, fully local browser app for scoring Standard Progressive Matrices answer sheets. It reads the handwritten student column for Sets A–E (12 questions each), asks the teacher to confirm every uncertain cell, then scores it against an editable key and shows:
 
-Everything runs in the browser. There is no backend, no account, no student identity, and no network request for recognition.
+- **Set A–E scores out of 12**
+- **A total out of 60**
+
+Everything runs in the browser. There is no backend, account, student identity, analytics, or network request for recognition. Images, cropped answer cells, and scores never leave the device.
+
+## What the app does
+
+1. **Capture or upload** one complete answer table per image. The camera uses the rear camera where available; drag-and-drop and batch upload are also supported.
+2. **Read the student column locally.** The scanner detects the table, corrects perspective, aligns the printed grid, removes red ink, and recognizes handwritten digits 1–8.
+3. **Cross-check decisive readings against verified references.** A small HOG nearest-neighbour corpus built from hand-verified answer sheets acts as a second opinion. If it strongly disagrees with a confident CNN reading, or if a handwritten 7 contains an enclosed region, the cell is sent to review. The reference check never replaces the CNN digit.
+4. **Confirm every uncertain answer.** Low-confidence, ambiguous, unreadable, and obstructed cells are marked **Needs confirmation**. A step-by-step panel shows the cropped answer cell and asks the teacher to choose 1–8 or mark it blank. The model's tentative digit is not displayed or used for those cells.
+5. **Release the score only after review.** Set scores, the total, batch totals, and export stay locked until every unresolved answer has been confirmed. The optional full grid shows all 60 cells and also allows corrections.
+
+Starting a new individual scan or batch clears the previous session so scores from different sheets cannot be mixed accidentally. Batch files are still shown as separate results. Crops are kept in memory only; they are not written to local storage or exported.
 
 ## Quick start
 
@@ -18,250 +31,192 @@ Open the printed local URL (normally `http://127.0.0.1:5173`). Use `npm.cmd` on 
 Other commands:
 
 ```powershell
-npm.cmd run test       # unit + integration tests
-npm.cmd run typecheck  # TypeScript
-npm.cmd run lint       # ESLint
-npm.cmd run build      # typecheck + production bundle
-npm.cmd run preview    # preview the production build
+npm.cmd run test                    # unit + integration tests
+npm.cmd run typecheck               # TypeScript
+npm.cmd run lint                    # ESLint
+npm.cmd run build                   # typecheck + production bundle
+npm.cmd run preview                 # preview the production build
+npm.cmd run generate:reference-corpus  # rebuild the verified HOG corpus
 ```
 
-## Deploy to Netlify
+`generate:reference-corpus` reads the hand-verified labels under `samples/validation/` and rewrites the generated `src/lib/ocr/reference-corpus.ts`. Do not edit that file by hand.
 
-This is a static Vite + React SPA. Netlify needs only to install dependencies, run the
-production build, and serve `dist`. There is no backend, Netlify Function, database, API key, or
-environment variable. Recognition runs in the browser and no model or worker file is downloaded at
-runtime.
+## Scoring and blank policy
 
-### Netlify settings
+The answer key is data, not recognition logic. It is editable in **Answer key & settings**, persists in local storage, and can be exported or imported as JSON. Changes rescore every scanned sheet immediately.
 
-| Setting | Value |
-| --- | --- |
-| Base directory | repository root (leave blank) |
-| Build command | `npm run build` |
-| Publish directory | `dist` |
-| Node.js version | `22` (set by `netlify.toml` as `NODE_VERSION = "22"`) |
-| Environment variables | none |
-| Functions / serverless | none |
+The main result always uses the standard maxima: `/12` per set and `/60` in total. If the blank policy is changed to **Exclude**, the scanner also shows a blank-adjusted maximum as a note; the large scores remain out of 12 and 60. Obstructed cells are never silently counted as wrong.
 
-The committed `netlify.toml` contains these settings. It also adds a single-page-app fallback
-(`/*` → `/index.html`, status 200) so an unmatched path or refresh serves the app entry; Vite's
-hashed assets are still served directly. Vite 7 requires Node.js 20.19+ or 22.12+; Netlify's Node
-22 release satisfies that.
+The settings panel also exposes:
 
-### Deploy from GitHub
+- Confidence gate: **96% validated default**
+- Confusion-margin gate: **90% validated default**
+- Auto-capture
+- Duplicate-image guard
 
-1. Put this folder in a GitHub repository if it is not already one:
+The confidence gate is deliberately strict. It was selected from real labeled cells, not tuned to maximize automatic acceptance; lowering it silently accepts known misreads. The settings panel includes a one-click reset to the validated gate.
 
-   ```powershell
-   git init
-   git add .
-   git commit -m "Prepare SPM Sheet Scanner for Netlify"
-   git branch -M main
-   git remote add origin https://github.com/YOUR-ACCOUNT/YOUR-REPOSITORY.git
-   git push -u origin main
-   ```
+Duplicate protection is scoped to one batch. Starting a new scan clears the session, so the same sheet can always be rescanned intentionally.
 
-2. In Netlify, choose **Add new site** → **Import an existing project** → **GitHub**, then select the
-   repository.
-3. Confirm the build settings. `netlify.toml` supplies the command and publish directory, so the
-   defaults should show:
-   - Build command: `npm run build`
-   - Publish directory: `dist`
-   - Base directory: leave empty
-4. Do not add environment variables. Deploy the site.
-5. Open the generated HTTPS URL (`https://NAME.netlify.app`). Netlify provisions TLS
-   automatically, which is required for camera access. A custom domain must also use HTTPS.
+## Confirmation gate and validation
 
-### Deploy with the Netlify CLI
+All 60 cells of `samples/reference-2.png` were hand-labeled from enlarged crops. The labels are in `samples/validation/reference-2-labels.json`; the contact sheets are in `samples/validation/`.
+
+The recognition model makes **7 misreads** on those 60 cells: B10, C1, C4, D5, E2, E10, and E12. The validated default gate uses:
+
+- confidence **≥ 0.96**
+- top-two margin **≥ 0.90**
+
+With the 96% / 90% gate, **39 cells auto-accept with 0 misreads** and **21 cells go to confirmation**; all 7 misreads are in that group. The tiny-box safeguard can add one more review: the full Node crop pipeline flags B5 as well, producing **38 auto-accepted / 22 to confirm**. On the browser preview, B5's border box is just over the tiny cutoff, so the app shows 39 / 21. The difference is one extra review, never a silent error.
+
+A 95% confidence gate was rejected: it would silently accept C1, an actual 8 misread as 7 at 95.3% confidence. The 96% gate is the lowest round confidence setting that produced zero auto-accepted errors on the labeled set.
+
+Reproduce the sweep:
 
 ```powershell
-npx.cmd netlify-cli login
-npx.cmd netlify-cli init
-npx.cmd netlify-cli deploy --prod
+npx.cmd tsx scripts/validate-thresholds.ts samples/reference-2.png samples/validation/reference-2-labels.json
 ```
 
-`netlify init` links the folder to a Netlify site and can read the build settings from
-`netlify.toml`. The local `.netlify/` folder created by the CLI is ignored by Git.
+This is a small validation set from one real sheet, not a statistical guarantee across all handwriting. It supports the conservative default; it does not prove that every possible sheet will have zero silent errors.
 
-### Test the production build locally
+## Verified reference sheets and second opinion
+
+Eleven additional answer sheets were uploaded, recovered byte-for-byte, and saved under `samples/reference-set-3/`. Every one of the 660 cells was manually checked against enlarged contact sheets. The ground truth is in `samples/validation/reference-set-3/labels.json`; one cell (sheet 03, C8) is a genuine blank.
+
+The original `samples/reference-2.png` and the official answer key are unchanged. The new sheets are additive references, not replacements.
+
+### Embedded corpus
+
+`src/lib/ocr/reference-corpus.ts` contains **719 verified cells**:
+
+- 660 cells from the 11 new sheets, minus the one verified blank
+- 60 hand-labeled cells from `reference-2`
+- 324 HOG dimensions per cell, quantized to uint8
+- 227 KiB of raw feature bytes, 311,803 bytes of generated TypeScript
+- SHA-256 `9a3b339aca15bc2449999d9bff824962be1a6f1cab139666d7b9f79bec285c66`
+
+`src/lib/ocr/reference.ts` decodes the corpus lazily. The corpus provenance and per-sheet counts are in `samples/validation/reference-set-3/reference-corpus-manifest.json`.
+
+### Rule
+
+For an already confident CNN reading, the scanner computes a HOG descriptor for the same normalized 28×28 cell and performs a three-neighbour weighted vote over the verified corpus. It flags the cell when either condition holds:
+
+- the reference vote disagrees with the CNN digit at reference confidence **≥ 0.50**, or
+- the CNN reads **7** and the normalized cell contains at least one enclosed background region (a common 4-written-like-7 shape).
+
+The reference check only changes the cell state to `uncertain`. It does not overwrite the digit, so the teacher still sees the crop and makes the final decision.
+
+### Leave-one-sheet-out results
+
+The 11 new sheets were evaluated as a leave-one-sheet-out validation set: when scoring a sheet, that sheet's cells are excluded from the reference corpus. The original reference-2 cells remain available.
+
+| Metric | CNN only | CNN + reference check |
+| --- | ---: | ---: |
+| Cells | 660 | 660 |
+| Overall cell accuracy | 92.0% (53 wrong) | 92.0% (53 wrong) |
+| Auto-accepted cells | 452 | 419 |
+| Auto-accepted correct | 437 | 415 |
+| Auto-accepted wrong | 15 | 4 |
+| Auto-accepted precision | 96.7% | **99.0%** |
+| Flagged for review | 208 (31.5%) | 241 (36.5%) |
+| Confident errors caught | — | 11 of 15 |
+| Correct auto cells added to review | — | 22 |
+| Clean blank resolved | 1/1 | 1/1 |
+
+Overall cell accuracy is unchanged by design: the second opinion flags, it does not guess a replacement. The improvement is in high-confidence precision: silent misreads drop from 15 to 4, at the cost of 22 additional reviews. The reference matching costs about **11 ms per sheet** in the validation harness; the full 11-sheet validation run takes about **5.0 s**.
+
+The four remaining confident misreads are unusual 4/6/7 handwriting styles:
+
+- 08 D12: 6 read as 2
+- 11 B12: 4 read as 6
+- 11 C9: 4 read as 7
+- 11 D6: 4 read as 6
+
+The corpus contains many 4 examples, but HOG still places these open-top or triangular 4s closer to 6/7. They remain documented limitations rather than being silently overridden.
+
+On `reference-2`, the model score remains **40/60** with the reference check, and confirming the 21 flagged cells produces the hand-labeled **44/60**. With the full embedded corpus (which includes the reference-2 cells themselves), the browser preview still shows 21 unresolved cells. In the stricter leave-one-sheet-out run, reference-2 moves from 38 to 37 auto-accepted cells and from 22 to 23 flagged cells, still with zero auto-accepted misreads and the same 40/60 model score.
+
+Reproduce the reference metrics and write the per-cell predictions:
 
 ```powershell
-npm.cmd run build
-npm.cmd run preview -- --host 127.0.0.1
+npx.cmd tsx scripts/validate-reference-set-3.ts
 ```
 
-Open `http://127.0.0.1:4173`. Localhost counts as a secure context, so the camera can be tested
-there. This checks the production bundle, but it does not emulate Netlify's hosting, headers, or
-redirects; use a Netlify deploy preview for that final check.
+## Recognition pipeline
 
-### Camera and privacy on the deployed site
+The app keeps the existing dependency-free TypeScript pipeline:
 
-Camera access requires a secure context. Use the Netlify HTTPS URL or localhost; opening the site
-over plain HTTP from a LAN address will show an HTTPS-required message. If permission is denied,
-allow camera access in the browser and retry, or use **Upload images** instead. All image
-processing remains in the browser: no photos, answer keys, or scan results are uploaded.
+1. Table detection and perspective rectification (`src/lib/vision/warp.ts`)
+2. Printed-grid alignment and cell cropping (`src/lib/vision/grid.ts`)
+3. Red-annotation removal, background subtraction, rule removal, connected components, and MNIST-style normalisation (`src/lib/ocr/preprocess.ts`)
+4. Embedded MNIST CNN inference (`src/lib/ocr/cnn.ts`), with repeated weights reused for every cell
+5. Optional verified-reference second opinion (`src/lib/ocr/features.ts`, `src/lib/ocr/reference.ts`)
+6. Local crop capture for review (`src/lib/image.ts`), kept as in-memory data URLs
+7. Confirmation gating and scoring against the editable key (`src/lib/scoring.ts`)
 
-The CNN weights are embedded in `src/lib/ocr/mnistWeights.ts`; the app never fetches a model or
-worker at runtime. `public/models/mnist-8.onnx` is retained only as the provenance source for the
-one-off weight-extraction helper. No runtime code, build setting, or test uses that file.
+Recognition is chunked between sets and yields to the browser, so the progress card repaints and the page stays responsive. The three-angle rotation ensemble is retained for ambiguous digits. When the base reading is already decisive, the extra rotations are skipped and the base pass is reused. This preserves the documented uncertain cells in the sample while substantially reducing recognition time.
 
-## Using the scanner
+## Performance
 
-1. Open **Scan**.
-2. Start the camera and hold one complete answer table inside the guide, or upload/drop one or more photos.
-3. The scanner automatically captures when the camera image is stable (if Auto is on), or press **Capture**.
-4. The result card shows Set A–E `/12`, TOTAL `/60`, scan time, and the number of answers needing review.
-5. Use **Review answers** to inspect every cell. Tap any cell to correct it or mark it blank; scores update immediately.
-6. Use **Next sheet** / **Scan another** to continue. Batch uploads are queued and scanned one at a time; the batch list shows scan numbers and scores only.
+Measured on `samples/reference-2.png` with `scripts/benchmark-scan.ts` (Node, same machine, three runs):
 
-Red teacher annotations and printed totals are never used for scoring. Only the middle student-answer column is read.
+| Phase | Before | After |
+| --- | ---: | ---: |
+| Detection | 48–76 ms | 49–57 ms |
+| Rectification | 59–70 ms | 58–59 ms |
+| Full pipeline benchmark | 609–611 ms | 286–321 ms |
+| Recognition only | 456–457 ms | 146–169 ms |
 
-### Answer key and settings
+Additional checks:
 
-**Key & settings** contains:
+- `scripts/test-warp.ts`: recognition improved from 365–414 ms to 154–170 ms.
+- `scripts/test-grid.ts` on the canonical warped sample: recognition improved from 393–476 ms to 196–203 ms.
+- The reference second opinion adds about 11 ms per sheet in the validation harness.
+- Browser production preview: the reference-2 scan with the reference check completed in **0.62 s** and showed 21 cells to confirm.
 
-- an editable 5 × 12 key (digits 1–8);
-- import/export/reset for the key;
-- blank policy:
-  - **Count wrong** — blank uses the full /12 maximum;
-  - **Exclude** — blank is removed from that set's maximum;
-  - **Review** — blank is retained and flagged for review;
-- low-confidence and confusion-margin thresholds;
-- auto-capture and duplicate-guard toggles.
+The untouched recognition pipeline returns **40/60** on the reference sample: A 12, B 10, C 6, D 8, E 4. The hand-labeled student answers are **44/60**: A 12, B 11, C 8, D 9, E 4. The confirmation flow exposes the difference: the four point-losing model errors (B10, C1, C4, D5) are all sent to review, so confirming the actual answers produces 44/60. The 40/60 figure is a recognition result, not the student's true score.
 
-Changes rescore every sheet in the current tab immediately. The key and settings are stored in `localStorage` under `spm-scanner.*`. The built-in key is configuration data in `src/lib/config.ts`; recognition code does not contain answer values.
+Reproduce the benchmark with:
 
-### Corrections
-
-A correction sets the chosen digit (or blank), clears the low-confidence flag for that cell, and recomputes set score, denominator, and total. Corrections are kept in memory for the current tab; no student identity is recorded.
-
-## How the vision pipeline works
-
-1. **Decode** — uploaded images are decoded with `createImageBitmap` (falling back to an `<img>`); camera frames are copied to a canvas.
-2. **Duplicate guard** — a 64-bit difference hash of the original image is compared with existing scans using Hamming distance.
-3. **Table detection** — a max-1200 px copy is converted to grayscale, thresholded against a local background, dilated, connected-components labelled, and scored for a tall table-shaped component. A convex four-corner quadrilateral is extracted.
-4. **Perspective rectification** — the original-resolution image is sampled through a homography into a canonical 1500 × 1463 sheet.
-5. **Grid alignment** — adaptive Otsu-based row-rule snapping and student-column detection; canonical constants are used as a fallback.
-6. **Cell preprocessing** — red ink is masked, the local paper background is subtracted, an adaptive ink threshold is applied, long printed rules and borders are removed, strokes are grouped, and the best component is scaled into a centered 28 × 28 MNIST-style image.
-7. **Recognition** — an embedded MNIST CNN runs with rotation test-time augmentation at −8°, 0°, and +8°. Only classes 1–8 are allowed. Confidence and top-two margin drive review flags.
-8. **Scoring** — `src/lib/scoring.ts` applies the key and blank policy. Obstructed cells are never silently treated as wrong answers.
-
-Detection works on a smaller copy for speed; the warp samples the sharp original source (capped at 3000 px). The embedded CNN weights are decoded once and reused for every cell and sheet; no model file is fetched.
-
-## Measured performance
-
-Measured in the local development build on a desktop Windows browser, after warm-up, using `samples/reference-2.png` (1500 × 2000):
-
-| Measurement | Result |
-| --- | --- |
-| Browser end-to-end scan | **0.59 s** |
-| Node detection | 66 ms |
-| Node perspective warp | 72 ms |
-| Node recognition (60 cells) | 410 ms |
-| Node total (detect + warp + recognition) | ~0.55 s |
-| Production bundle | 305.15 KB JS (111.17 KB gzip), 13.53 KB CSS |
-
-The 1-second target was met on this desktop sample. Lower-end phones, very large photos, and cold starts will be slower. The camera auto-capture path was not validated with a physical camera in this environment because camera permission was denied; the permission-error state was tested.
-
-## Accuracy and sample baseline
-
-The repository includes:
-
-- `samples/reference-2.png` — a photographed student sheet with gray student answers and red teacher annotations;
-- `samples/reference-1.png` — the red teacher key sheet (not a student sheet);
-- `samples/proto-warp.png` — a canonical rectified student sheet used by the integration tests.
-
-The scanner reports **40/60** for `reference-2.png`:
-
-| Set | A | B | C | D | E | Total |
-| --- | --- | --- | --- | --- | --- | --- |
-| Score | 12 | 10 | 6 | 8 | 4 | **40/60** |
-
-This is the **student's score against the supplied key**, not a recognition-accuracy percentage. The red teacher annotations match the key and are ignored; low-confidence cells are flagged instead of being presented as certain. Several cells in this sample are genuinely wrong answers, not recognition failures.
-
-Important caveats:
-
-- This is **one photographed sheet**, not a validation set. Do not generalize the 40/60 result to overall handwriting accuracy.
-- Handwriting ambiguity remains possible. A confidently read cell can still be wrong; the review screen exists for that reason. Cells the model is unsure about are flagged, but confidence is not a guarantee.
-- A teacher-key sheet has no student answers. Scanning `reference-1.png` produces a near-zero result with many blank/obstructed cells and a warning; it is not a supported student input.
-- The scanner expects one complete table with all four edges visible. Extreme perspective, folds, motion blur, poor lighting, or heavy obstruction can reduce accuracy.
-- Duplicate detection is a perceptual hash of the uploaded image. The same or near-identical image is skipped, but a different crop, rotation, or strong perspective change may not match.
-- Image format support depends on the browser's decoder. JPG and PNG are recommended; HEIC is not guaranteed.
-- The app stores the key/settings locally and scans only in memory for the current tab. Reloading clears the scan list.
+```powershell
+npx.cmd tsx scripts/benchmark-scan.ts samples/reference-2.png
+```
 
 ## Tests
 
-The test suite currently has 28 tests in three files:
+The suite covers scoring invariants, blank policy, malformed keys, all five sets, permitted digits, blank/obstructed handling, red-annotation rejection, confirmation gating, confirmed-cell trust, crop preservation, rotated handwriting, duplicate-image protection, intentional rescans, HOG/hole features, the reference vote, the conservative flag rule, the embedded corpus, and reference integration.
 
-- `tests/scoring.test.ts` — key validation, perfect/all-wrong sheets, blank policies, obstructed handling, corrections, confidence flags, duplicate hashing.
-- `tests/scanning.test.ts` — 60-cell integration on the canonical sample, permitted digit/state invariants, known baseline, uncertainty flags, synthetic blank/dark/obstructed cells, dark and rotated real cells, red-annotation removal.
-- `tests/pipeline.test.ts` — adaptive grid test plus full detect → warp → grid → recognize → score pipeline on the photographed student sheet.
+`tests/reference.test.ts` covers descriptor shape, enclosed-region counting, nearest-reference voting, the flag threshold, and corpus loading. `tests/validation.test.ts` pins the reference-2 confirmation gate, the 40/60 model score, the 44/60 confirmed score, and the rule that the reference check flags without replacing the CNN digit.
 
-Reproduce the Node benchmark:
+The synthetic `samples/proto-warp.png` fixture is used for grid/layout regression only. Exact recognition accuracy is pinned on the hand-labeled `reference-2` and reference-set-3 sheets; the synthetic warp is not a labeled accuracy set.
 
-```powershell
-npx.cmd tsx scripts/test-warp.ts samples/reference-2.png
-npx.cmd tsx scripts/test-grid.ts samples/proto-warp.png
-```
+Current result:
 
-Final checks performed:
+- `npm.cmd run test`: **52 tests passed** across 6 files
+- `npm.cmd run typecheck`: passed
+- `npm.cmd run lint`: passed
+- `npm.cmd run build`: passed
 
-```text
-npm.cmd run typecheck  PASS
-npm.cmd run lint       PASS
-npm.cmd run test       PASS (28/28)
-npm.cmd run build      PASS
-npm.cmd run preview    PASS (production bundle served)
-```
+The total is asserted to equal the sum of Sets A–E and to never exceed 60 in randomized sheets. The integration test confirms the untouched sample remains 40/60 with the documented ambiguous cells still flagged; the validation test confirms the confirmation gate exposes all known misreads.
 
-Production bundle verification (desktop Chromium, `vite preview`, 127.0.0.1):
+## Deploy to Netlify
 
-- single upload of `samples/reference-2.png` → **40/60**, 11 flagged, 0.60 s;
-- batch upload (duplicate + new image) → duplicate skipped, second sheet scored 28/60;
-- key edit and reset → all visible scores rescored immediately;
-- key export/import → valid JSON and "Answer key imported.";
-- review correction → set and total scores updated immediately;
-- scan JSON export → valid JSON with 28/60 and corrected cell state;
-- camera permission denial → "Camera permission was denied. Allow camera access or upload an image instead.";
-- insecure HTTP LAN address → "Camera access requires HTTPS. Open this site over HTTPS, or upload an image instead."
+This is a static Vite + React SPA. Netlify only needs to install dependencies, run the production build, and serve `dist`. There is no backend, Netlify Function, database, API key, or environment variable.
 
-The production page loaded with only the document, JavaScript bundle, and CSS request; there was no model or
-worker download. A physical camera and an actual Netlify deploy were not available in this environment, so
-auto-capture against real paper and Netlify's redirect/header behavior remain unverified.
+`netlify.toml` contains the expected settings:
 
-## Project layout
+- Build command: `npm run build`
+- Publish directory: `dist`
+- Node version: 22
+- SPA fallback to `index.html`
 
-```text
-src/
-  App.tsx                     state, queue, camera/upload handlers, exports
-  components/
-    CameraPanel.tsx           live preview, stability/auto-capture
-    ScanView.tsx              scan/upload/batch UI
-    ReviewView.tsx            cell correction modal and answer grid
-    KeyView.tsx               editable key and settings
-    ResultSummary.tsx         scan result card and warnings
-    ScoreTiles.tsx            set/total score tiles
-  lib/
-    config.ts                 default key, settings, canonical grid constants
-    scoring.ts                scoring, corrections, blank policies
-    image.ts                  decode, dHash, frame stability, downloads
-    vision/warp.ts            thresholding, table detection, homography, warp
-    vision/grid.ts            adaptive row/column alignment and cell crops
-    vision/scan.ts            full scan orchestration
-    ocr/preprocess.ts         red/rule removal, ink extraction, 28×28 normalization
-    ocr/cnn.ts                embedded CNN inference
-    ocr/recognize.ts          rotation TTA, confidence, blank/obstructed states
-    ocr/mnistWeights.ts       embedded weights (generated)
-tests/                        scoring, scanning and pipeline tests
-samples/                      reference images
-scripts/                      reproducible benchmarks and weight provenance
-netlify.toml                  Netlify build, publish, Node and SPA fallback settings
-```
+The production bundle embeds the recognition model and the reference corpus, and requires no runtime download.
 
-The CNN weights were extracted from the ONNX model zoo `mnist-8.onnx` (MIT) into `src/lib/ocr/mnistWeights.ts`. The one-off extraction helper is kept for provenance; it is not needed to build or run the app.
+## Browser support and limitations
 
-## Privacy and external services
-
-All detection, recognition, scoring, and storage happen locally in the browser. There is no server request, paid API, analytics, or student-identifying data. Camera access is requested only when **Start camera** is pressed and requires localhost or HTTPS.
-#   s h e e t - s c a n n e r  
- 
+- Camera access requires HTTPS or localhost. Over plain HTTP the app explains the limitation and recommends image upload.
+- Handwriting recognition is sensitive to severe blur, glare, shadows, very small writing, and heavily obstructed cells. Low-confidence and obstructed cells are flagged rather than presented as certain.
+- The reference check is conservative: it catches style disagreements it has seen before, but it cannot catch every confident error. Four unusual 4/6/7 cells remain in the 11-sheet validation set.
+- Printed totals, teacher keys, and red annotations are ignored by design.
+- A teacher key or an almost-empty sheet can look like a student sheet with many missing answers. The app shows a prominent warning in that case.
+- Physical camera behavior and a live Netlify deployment were not exercised in this environment; the production build was verified locally.

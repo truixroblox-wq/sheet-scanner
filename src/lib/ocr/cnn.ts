@@ -60,31 +60,45 @@ function convSame(
 ): Float32Array {
   const out = new Float32Array(outC * inH * inW);
   const pad = 2;
+
+  // Pad once. The inner convolution loop then has no bounds checks, which is
+  // measurably faster than testing five edges for every kernel tap.
+  const paddedH = inH + pad * 2;
+  const paddedW = inW + pad * 2;
+  const padded = new Float32Array(inC * paddedH * paddedW);
+  for (let ic = 0; ic < inC; ic++) {
+    const inBase = ic * inH * inW;
+    const padBase = ic * paddedH * paddedW;
+    for (let y = 0; y < inH; y++) {
+      let source = inBase + y * inW;
+      let target = padBase + (y + pad) * paddedW + pad;
+      for (let x = 0; x < inW; x++) padded[target++] = input[source++];
+    }
+  }
+
   for (let oc = 0; oc < outC; oc++) {
     const wBase = oc * inC * 25;
     const b = bias[oc];
     const outBase = oc * inH * inW;
     for (let y = 0; y < inH; y++) {
-      const y0 = y - pad;
+      const outRow = outBase + y * inW;
       for (let x = 0; x < inW; x++) {
-        const x0 = x - pad;
         let sum = b;
         for (let ic = 0; ic < inC; ic++) {
-          const inBase = ic * inH * inW;
+          const inBase = ic * paddedH * paddedW + y * paddedW + x;
           const wChan = wBase + ic * 25;
           for (let ky = 0; ky < 5; ky++) {
-            const iy = y0 + ky;
-            if (iy < 0 || iy >= inH) continue;
-            const rowBase = inBase + iy * inW;
+            const inRow = inBase + ky * paddedW;
             const wRow = wChan + ky * 5;
-            for (let kx = 0; kx < 5; kx++) {
-              const ix = x0 + kx;
-              if (ix < 0 || ix >= inW) continue;
-              sum += input[rowBase + ix] * weights[wRow + kx];
-            }
+            sum +=
+              padded[inRow] * weights[wRow] +
+              padded[inRow + 1] * weights[wRow + 1] +
+              padded[inRow + 2] * weights[wRow + 2] +
+              padded[inRow + 3] * weights[wRow + 3] +
+              padded[inRow + 4] * weights[wRow + 4];
           }
         }
-        out[outBase + y * inW + x] = sum > 0 ? sum : 0;
+        out[outRow + x] = sum > 0 ? sum : 0;
       }
     }
   }
@@ -106,16 +120,29 @@ function maxPool(
     const inBase = c * inH * inW;
     const outBase = c * h * w;
     for (let y = 0; y < h; y++) {
+      const row = inBase + y * stride * inW;
       for (let x = 0; x < w; x++) {
-        let m = -Infinity;
-        for (let ky = 0; ky < size; ky++) {
-          const row = inBase + (y * stride + ky) * inW;
-          for (let kx = 0; kx < size; kx++) {
-            const v = input[row + x * stride + kx];
-            if (v > m) m = v;
+        const i = row + x * stride;
+        let max: number;
+        if (size === 2) {
+          max = Math.max(input[i], input[i + 1], input[i + inW], input[i + inW + 1]);
+        } else if (size === 3) {
+          max = Math.max(
+            input[i], input[i + 1], input[i + 2],
+            input[i + inW], input[i + inW + 1], input[i + inW + 2],
+            input[i + inW * 2], input[i + inW * 2 + 1], input[i + inW * 2 + 2],
+          );
+        } else {
+          max = -Infinity;
+          for (let ky = 0; ky < size; ky++) {
+            const rowBase = i + ky * inW;
+            for (let kx = 0; kx < size; kx++) {
+              const v = input[rowBase + kx];
+              if (v > max) max = v;
+            }
           }
         }
-        out[outBase + y * w + x] = m;
+        out[outBase + y * w + x] = max;
       }
     }
   }

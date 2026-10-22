@@ -2,8 +2,6 @@ import {
   BLOCK_WIDTH,
   CELL_VERTICAL_INSET,
   ROW_LINES,
-  STUDENT_CELL_LEFT,
-  STUDENT_CELL_RIGHT,
   TABLE_WIDTH,
 } from '../config';
 import type { SetId } from '../../types';
@@ -150,6 +148,30 @@ function bestPeak(
   return weight > 0 ? Math.round(weighted / weight) : best;
 }
 
+function nearestPeak(
+  profile: Float64Array,
+  expected: number,
+  radius: number,
+  minValue: number,
+): number | null {
+  const from = Math.max(1, Math.round(expected - radius));
+  const to = Math.min(profile.length - 2, Math.round(expected + radius));
+  let best: number | null = null;
+  let bestDistance = Infinity;
+  let bestValue = -Infinity;
+  for (let i = from; i <= to; i++) {
+    if (profile[i] < minValue) continue;
+    if (profile[i] < profile[i - 1] || profile[i] <= profile[i + 1]) continue;
+    const distance = Math.abs(i - expected);
+    if (distance < bestDistance || (distance === bestDistance && profile[i] > bestValue)) {
+      best = i;
+      bestDistance = distance;
+      bestValue = profile[i];
+    }
+  }
+  return best;
+}
+
 interface Peak {
   x: number;
   value: number;
@@ -178,19 +200,87 @@ function findPeaks(
   return peaks;
 }
 
-function snapRows(
-  gray: Float32Array,
-  w: number,
-  h: number,
-  threshold: number,
+/**
+ * Fit the 13 printed row rules as one affine lattice.
+ *
+ * Phone photos stretch the table vertically by different amounts, so the
+ * canonical rule positions can drift by more than half a row at the bottom.
+ * Searching one fixed window per rule then latches onto the neighbouring rule.
+ * Instead, search a small range of scales/offsets, score every candidate with
+ * the row profile, and snap the winning lattice to nearby local peaks.
+ */
+function fitRowLattice(
+  profile: Float64Array,
 ): { lines: number[]; usedFallback: boolean } {
-  const profile = rowProfile(gray, w, h, threshold);
-  const minValue = w * 0.2;
-  const lines = ROW_LINES.map((expected) => {
-    const peak = bestPeak(profile, expected, 55, minValue);
-    return peak ?? expected;
+  let bestScale = 1;
+  let bestOffset = 0;
+  let bestScore = -Infinity;
+  for (let scale = 0.94; scale <= 1.121; scale += 0.002) {
+    for (let offset = -40; offset <= 50; offset += 1) {
+      let score = 0;
+      for (const base of ROW_LINES) {
+        const pos = Math.round(base * scale + offset);
+        if (pos < 1 || pos >= profile.length - 1) {
+          score = -Infinity;
+          break;
+        }
+        let peak = 0;
+        for (let d = -14; d <= 14; d++) {
+          const value = profile[pos + d] ?? 0;
+          if (value > peak) peak = value;
+        }
+        score += peak;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestScale = scale;
+        bestOffset = offset;
+      }
+    }
+  }
+
+  const lines = ROW_LINES.map((base) => {
+    const pos = Math.round(base * bestScale + bestOffset);
+    if (pos < 1 || pos >= profile.length - 1) return pos;
+    let bestPos = pos;
+    let bestValue = profile[pos] ?? 0;
+    // Prefer a strong nearby peak but penalise distance so the snap cannot
+    // jump to the adjacent row rule.
+    for (let d = -22; d <= 22; d++) {
+      const candidate = pos + d;
+      if (candidate < 1 || candidate >= profile.length - 1) continue;
+      if (
+        profile[candidate] < profile[candidate - 1] ||
+        profile[candidate] <= profile[candidate + 1]
+      ) {
+        continue;
+      }
+      const value = profile[candidate] - Math.abs(d) * 1.5;
+      if (value > bestValue) {
+        bestValue = value;
+        bestPos = candidate;
+      }
+    }
+    return bestPos;
   });
 
+  let usedFallback = bestScore <= 0;
+  for (let i = 1; i < lines.length; i++) {
+    const spacing = lines[i] - lines[i - 1];
+    if (spacing < 65 || spacing > 145) {
+      lines[i] = lines[i - 1] + 100;
+      usedFallback = true;
+    }
+  }
+  return { lines, usedFallback };
+}
+
+function legacyRows(
+  profile: Float64Array,
+  w: number,
+): { lines: number[]; usedFallback: boolean } {
+  const minValue = w * 0.2;
+  const lines = ROW_LINES.map((expected) => bestPeak(profile, expected, 55, minValue) ?? expected);
   let usedFallback = false;
   for (let i = 1; i < lines.length; i++) {
     const spacing = lines[i] - lines[i - 1];
@@ -200,6 +290,28 @@ function snapRows(
     }
   }
   return { lines, usedFallback };
+}
+
+function spacingSpread(lines: number[]): number {
+  const spacings = lines.slice(1).map((line, index) => line - lines[index]);
+  return Math.max(...spacings) - Math.min(...spacings);
+}
+
+/**
+ * Use the legacy per-rule snap when it found a coherent lattice. If the photo
+ * has a different vertical scale, the legacy pass usually leaves one or two
+ * obviously broken gaps; only then fall back to the affine lattice fit.
+ */
+function snapRows(
+  gray: Float32Array,
+  w: number,
+  h: number,
+  threshold: number,
+): { lines: number[]; usedFallback: boolean } {
+  const profile = rowProfile(gray, w, h, threshold);
+  const legacy = legacyRows(profile, w);
+  if (!legacy.usedFallback && spacingSpread(legacy.lines) <= 25) return legacy;
+  return fitRowLattice(profile);
 }
 
 function snapColumns(
@@ -222,7 +334,7 @@ function snapColumns(
   const boundaryMin = height * 0.55;
   const blocks = expectedBlocks.map((expected, index) => {
     if (index === 0 || index === expectedBlocks.length - 1) return expected;
-    return bestPeak(profile, expected, 70, boundaryMin) ?? expected;
+    return nearestPeak(profile, expected, 42, boundaryMin) ?? expected;
   });
   for (let i = 1; i < blocks.length; i++) {
     if (blocks[i] - blocks[i - 1] < 220) blocks[i] = expectedBlocks[i];
@@ -234,9 +346,14 @@ function snapColumns(
     const b0 = blocks[k];
     const b1 = blocks[k + 1];
     const bw = b1 - b0;
+    // The printed row-number column is about a quarter of a block wide. The
+    // old fixed 40..190 fallback was narrower and could include the printed row
+    // number when a faint block failed peak detection.
+    const expectedLeft = b0 + bw * 0.25;
+    const expectedRight = b0 + bw * 0.73;
     const fallback = {
-      left: Math.round(k * BLOCK_WIDTH + STUDENT_CELL_LEFT),
-      right: Math.round(k * BLOCK_WIDTH + STUDENT_CELL_RIGHT),
+      left: Math.round(expectedLeft),
+      right: Math.round(expectedRight),
     };
     if (bw < 180) {
       columns.push(fallback);
@@ -250,14 +367,17 @@ function snapColumns(
       Math.floor(b1 - bw * 0.1),
       height * 0.35,
     );
-    const target = bw * 0.47;
+    const target = expectedRight - expectedLeft;
     let best: { a: Peak; b: Peak; score: number } | null = null;
     for (let i = 0; i < peaks.length; i++) {
       for (let j = i + 1; j < peaks.length; j++) {
         const width = peaks[j].x - peaks[i].x;
         if (width < bw * 0.3 || width > bw * 0.62) continue;
         const score =
-          peaks[i].value + peaks[j].value - Math.abs(width - target) * 1.5;
+          peaks[i].value +
+          peaks[j].value -
+          Math.abs(width - target) * 1.5 -
+          (Math.abs(peaks[i].x - expectedLeft) + Math.abs(peaks[j].x - expectedRight)) * 1.5;
         if (!best || score > best.score) best = { a: peaks[i], b: peaks[j], score };
       }
     }
@@ -313,15 +433,10 @@ export function cropCells(
       const y1 = Math.round(bottom - rowHeight * CELL_VERTICAL_INSET);
       const height = Math.max(1, y1 - y0);
       const data = new Uint8ClampedArray(width * height * 4);
+      const rowBytes = width * 4;
       for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          const si = ((y0 + y) * image.width + left + x) * 4;
-          const di = (y * width + x) * 4;
-          data[di] = image.data[si];
-          data[di + 1] = image.data[si + 1];
-          data[di + 2] = image.data[si + 2];
-          data[di + 3] = 255;
-        }
+        const sourceStart = ((y0 + y) * image.width + left) * 4;
+        data.set(image.data.subarray(sourceStart, sourceStart + rowBytes), y * rowBytes);
       }
       cells.push({ width, height, data } as ImageData);
     }

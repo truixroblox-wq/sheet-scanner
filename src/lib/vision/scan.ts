@@ -1,8 +1,16 @@
 import { recognizeCell } from '../ocr/recognize';
-import type { AppSettings, ScanResult, SetId } from '../../types';
+import { getReferenceCorpus } from '../ocr/reference';
+import type {
+  AnswerKey,
+  AppSettings,
+  CellResult,
+  ScanProgress,
+  ScanResult,
+  SetId,
+} from '../../types';
 import { SET_IDS } from '../../types';
 import { markUncertain, scoreScan } from '../scoring';
-import type { AnswerKey } from '../../types';
+import { imageDataToDataUrl } from '../image';
 import { rectifySheet } from './warp';
 import { cropCells, detectGrid } from './grid';
 
@@ -13,24 +21,56 @@ export interface ScanInput {
   scanNumber: number;
   settings: AppSettings;
   key: AnswerKey;
+  onProgress?: (progress: ScanProgress) => void;
+}
+
+function yieldToMain(): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
 }
 
 export async function scanSheet(input: ScanInput): Promise<ScanResult> {
   const started = performance.now();
-  const rectified = await rectifySheet(input.canvas);
-  const ctx = rectified.canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) throw new Error('Could not read the rectified sheet.');
-  const sheetImage = ctx.getImageData(0, 0, rectified.canvas.width, rectified.canvas.height);
-  const geometry = detectGrid(sheetImage);
-  const cellImages = cropCells(sheetImage, geometry);
+  const report = (progress: ScanProgress) => input.onProgress?.(progress);
 
-  const rawCells = {} as Record<SetId, ReturnType<typeof recognizeCell>[]>;
+  report({ stage: 'detecting', label: 'Finding and straightening the table', completed: 0, total: 60 });
+  await yieldToMain();
+  const rectified = await rectifySheet(input.canvas);
+
+  report({ stage: 'aligning', label: 'Aligning the answer grid', completed: 0, total: 60 });
+  await yieldToMain();
+  const geometry = detectGrid(rectified.image);
+  const cellImages = cropCells(rectified.image, geometry);
+
+  report({ stage: 'reading', label: 'Reading handwritten answers', completed: 0, total: 60 });
+  await yieldToMain();
+  const referenceCorpus = getReferenceCorpus();
+  const rawCells = {} as Record<SetId, CellResult[]>;
+  let completed = 0;
   for (const set of SET_IDS) {
-    rawCells[set] = cellImages[set].map((cell, index) =>
-      recognizeCell(cell, input.settings, index + 1),
-    );
+    const cells: CellResult[] = [];
+    for (let index = 0; index < cellImages[set].length; index++) {
+      const cellImage = cellImages[set][index];
+      cells.push({
+        ...recognizeCell(cellImage, input.settings, index + 1, { referenceCorpus }),
+        cropUrl: imageDataToDataUrl(cellImage),
+      });
+      completed++;
+    }
+    rawCells[set] = cells;
+    report({
+      stage: 'reading',
+      label: `Reading handwritten answers · set ${set}`,
+      completed,
+      total: 60,
+    });
+    // Hand control back to the browser between sets so the progress bar paints
+    // and the Scan/Capture buttons remain responsive during recognition.
+    await yieldToMain();
   }
 
+  report({ stage: 'scoring', label: 'Scoring 60 answers', completed: 60, total: 60 });
   const scored = scoreScan(rawCells, input.key, input.settings.blankPolicy);
   const sets = markUncertain(
     scored.sets,

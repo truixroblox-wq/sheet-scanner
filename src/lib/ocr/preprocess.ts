@@ -189,17 +189,15 @@ export function extractCell(cell: ImageData): CellExtraction {
     const ch = c.maxY - c.minY + 1;
     if (c.area < 4) return false;
     if (cw > w * 0.8 && ch < h * 0.22) return false;
-    if (ch > h * 0.92 && cw < w * 0.22) return false;
+    if (ch > h * 0.92 && cw < w * 0.08) return false;
     if (cw > w * 0.9 && ch < h * 0.15) return false;
     if (cw > w * 0.8 && ch <= Math.max(3, h * 0.08)) return false;
     if (ch > h * 0.8 && cw <= Math.max(3, w * 0.05)) return false;
     if (ch <= 3 && cw > w * 0.15) return false;
     if (cw <= 2 && ch > h * 0.15) return false;
     if (cw < w * 0.1 && ch > h * 0.5 && (c.minX < w * 0.12 || c.maxX > w * 0.88)) return false;
-    if (c.minY < h * 0.2 && cw > w * 0.3 && ch < h * 0.3) return false;
-    if (c.maxY > h * 0.8 && cw > w * 0.3 && ch < h * 0.3) return false;
-    if (ch > h * 0.95) return false;
-    if (cw > w * 0.8 || ch > h * 0.9) return false;
+    if (c.minY < h * 0.2 && cw > w * 0.65 && ch < h * 0.3) return false;
+    if (c.maxY > h * 0.8 && cw > w * 0.65 && ch < h * 0.3) return false;
     return true;
   });
 

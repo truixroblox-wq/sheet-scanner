@@ -23,7 +23,11 @@ export interface WarpQuality {
 }
 
 export interface RectifiedSheet {
-  canvas: HTMLCanvasElement;
+  /**
+   * The rectified sheet as raw pixels. Recognition reads this directly so the
+   * scan does not pay for an extra canvas put/get image round-trip.
+   */
+  image: ImageData;
   quality: WarpQuality;
 }
 
@@ -383,11 +387,17 @@ export function warpPerspective(
       const i10 = (y0 * sw + x1) * 4;
       const i01 = (y1 * sw + x0) * 4;
       const i11 = (y1 * sw + x1) * 4;
-      for (let c = 0; c < 3; c++) {
-        const top = data[i00 + c] * (1 - fx) + data[i10 + c] * fx;
-        const bottom = data[i01 + c] * (1 - fx) + data[i11 + c] * fx;
-        out[di + c] = top * (1 - fy) + bottom * fy;
-      }
+      const ifx = 1 - fx;
+      const ify = 1 - fy;
+      out[di] =
+        (data[i00] * ifx + data[i10] * fx) * ify +
+        (data[i01] * ifx + data[i11] * fx) * fy;
+      out[di + 1] =
+        (data[i00 + 1] * ifx + data[i10 + 1] * fx) * ify +
+        (data[i01 + 1] * ifx + data[i11 + 1] * fx) * fy;
+      out[di + 2] =
+        (data[i00 + 2] * ifx + data[i10 + 2] * fx) * ify +
+        (data[i01 + 2] * ifx + data[i11 + 2] * fx) * fy;
       out[di + 3] = 255;
     }
   }
@@ -396,7 +406,7 @@ export function warpPerspective(
 
 function measureQuality(image: ImageData): { meanLuminance: number; blurScore: number } {
   const { width, height, data } = image;
-  const gray = new Float32Array(width * height);
+  const gray = new Uint8ClampedArray(width * height);
   let sum = 0;
   for (let i = 0; i < width * height; i++) {
     const value = 0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2];
@@ -425,16 +435,6 @@ function measureQuality(image: ImageData): { meanLuminance: number; blurScore: n
   return { meanLuminance, blurScore: variance };
 }
 
-function canvasFromImageData(image: ImageData): HTMLCanvasElement {
-  const canvas = document.createElement('canvas');
-  canvas.width = image.width;
-  canvas.height = image.height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Could not create a drawing surface.');
-  ctx.putImageData(image, 0, 0);
-  return canvas;
-}
-
 /**
  * Find the table and perspective-correct it to the canonical 1500x1463 size.
  * Falls back to a full-frame resize when detection is not confident.
@@ -443,7 +443,7 @@ function resizeToTable(source: HTMLCanvasElement): ImageData {
   const full = document.createElement('canvas');
   full.width = TABLE_WIDTH;
   full.height = TABLE_HEIGHT;
-  const ctx = full.getContext('2d');
+  const ctx = full.getContext('2d', { willReadFrequently: true });
   if (!ctx) throw new Error('Could not create a drawing surface.');
   ctx.drawImage(source, 0, 0, TABLE_WIDTH, TABLE_HEIGHT);
   return ctx.getImageData(0, 0, TABLE_WIDTH, TABLE_HEIGHT);
@@ -509,7 +509,7 @@ export async function rectifySheet(source: HTMLCanvasElement): Promise<Rectified
   if (blurScore < 55) warnings.push('Image may be blurry. Hold still and tap to focus.');
 
   return {
-    canvas: canvasFromImageData(rectified),
+    image: rectified,
     quality: { meanLuminance, blurScore, warnings, usedFallback },
   };
 }

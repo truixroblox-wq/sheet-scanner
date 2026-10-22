@@ -18,8 +18,12 @@ export interface CellResult {
   state: CellState;
   /** Ink area of the selected component group. */
   area: number;
-  /** True when the user explicitly corrected this cell. */
+  /** True when the user explicitly corrected or confirmed this cell. */
   corrected?: boolean;
+  /** True when a teacher has reviewed this cell in the confirmation flow. */
+  confirmed?: boolean;
+  /** Local data URL of the cropped answer cell, used in confirmation/review. */
+  cropUrl?: string;
 }
 
 export interface SetResult {
@@ -38,6 +42,16 @@ export interface ScanQuality {
   meanLuminance: number;
   blurScore: number;
   warnings: string[];
+}
+
+export type ScanStage = 'preparing' | 'detecting' | 'aligning' | 'reading' | 'scoring';
+
+export interface ScanProgress {
+  stage: ScanStage;
+  label: string;
+  /** Work completed in the current stage, when the stage is countable. */
+  completed: number;
+  total: number;
 }
 
 export interface ScanResult {

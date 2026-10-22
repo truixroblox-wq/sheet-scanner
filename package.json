@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "generate:reference-corpus": "tsx scripts/generate-reference-corpus.ts"
   },
   "dependencies": {
     "react": "^19.2.0",

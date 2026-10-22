@@ -1,12 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_KEY, cloneKey, validateKey } from '../src/lib/config';
 import {
+  DEFAULT_KEY,
+  DEFAULT_SETTINGS,
+  VALIDATED_CONFIDENCE_THRESHOLD,
+  VALIDATED_MARGIN_THRESHOLD,
+  cloneKey,
+  validateKey,
+} from '../src/lib/config';
+import {
+  cellNeedsConfirmation,
   correctCell,
+  countUnresolved,
+  isScanFinalized,
   keyIsDefault,
   markUncertain,
   resetKey,
   scoreScan,
   scoreSet,
+  unresolvedCells,
 } from '../src/lib/scoring';
 import type { AnswerKey, CellResult, ScanResult, SetId, SetResult } from '../src/types';
 import { SET_IDS } from '../src/types';
@@ -133,6 +144,98 @@ describe('scoring', () => {
       scoreSet('A', cellsFromDigits(DEFAULT_KEY.A), { ...DEFAULT_KEY, A: [] }, 'wrong'),
     ).toThrow();
   });
+
+  it('always keeps the total equal to the five set scores and at most 60', () => {
+    let seed = 1234567;
+    const next = () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return seed / 0x100000000;
+    };
+
+    for (let sheet = 0; sheet < 20; sheet++) {
+      const cells = {} as Record<SetId, CellResult[]>;
+      for (const set of SET_IDS) {
+        cells[set] = Array.from({ length: 12 }, (_, index) => {
+          const roll = next();
+          if (roll < 0.08) return makeCell(index + 1, null, 'blank');
+          if (roll < 0.12) return makeCell(index + 1, null, 'obstructed');
+          return makeCell(index + 1, 1 + Math.floor(next() * 8));
+        });
+      }
+      const scored = scoreScan(cells, DEFAULT_KEY, 'wrong');
+      const sumOfSets = SET_IDS.reduce((sum, set) => sum + scored.sets[set].score, 0);
+      expect(scored.total).toBe(sumOfSets);
+      expect(scored.total).toBeGreaterThanOrEqual(0);
+      expect(scored.total).toBeLessThanOrEqual(60);
+      expect(scored.totalPossible).toBe(60);
+    }
+  });
+
+  it('keeps every set maximum at 12 when blanks count as wrong', () => {
+    const cells = cellsFromDigits(DEFAULT_KEY.A);
+    cells[0] = makeCell(1, null, 'blank');
+    cells[1] = makeCell(2, null, 'obstructed');
+    const result = scoreSet('A', cells, DEFAULT_KEY, 'wrong');
+    expect(result.denominator).toBe(12);
+  });
+});
+
+describe('confirmation gate', () => {
+  it('uses the validated gate by default', () => {
+    expect(DEFAULT_SETTINGS.confidenceThreshold).toBe(VALIDATED_CONFIDENCE_THRESHOLD);
+    expect(DEFAULT_SETTINGS.marginThreshold).toBe(VALIDATED_MARGIN_THRESHOLD);
+    expect(DEFAULT_SETTINGS.confidenceThreshold).toBe(0.96);
+    expect(DEFAULT_SETTINGS.marginThreshold).toBe(0.9);
+  });
+
+  it('keeps an uncertain model prediction unresolved until the teacher confirms it', () => {
+    const cells = allCells(DEFAULT_KEY);
+    cells.A[0] = makeCell(1, 4, 'uncertain');
+    const scan = makeScan(cells, DEFAULT_KEY);
+
+    expect(cellNeedsConfirmation(scan.sets.A.cells[0])).toBe(true);
+    expect(countUnresolved(scan)).toBe(1);
+    expect(isScanFinalized(scan)).toBe(false);
+    expect(unresolvedCells(scan)[0]).toMatchObject({ set: 'A', cell: { row: 1 } });
+
+    const confirmed = correctCell(scan, 'A', 1, 4, DEFAULT_KEY, 'wrong');
+    expect(confirmed.sets.A.cells[0].confirmed).toBe(true);
+    expect(confirmed.sets.A.cells[0].corrected).toBe(true);
+    expect(cellNeedsConfirmation(confirmed.sets.A.cells[0])).toBe(false);
+    expect(countUnresolved(confirmed)).toBe(0);
+    expect(isScanFinalized(confirmed)).toBe(true);
+  });
+
+  it('requires confirmation for obstructed cells and accepts an explicit blank decision', () => {
+    const cells = allCells(DEFAULT_KEY);
+    cells.B[2] = makeCell(3, null, 'obstructed');
+    const scan = makeScan(cells, DEFAULT_KEY);
+    expect(countUnresolved(scan)).toBe(1);
+
+    const blanked = correctCell(scan, 'B', 3, null, DEFAULT_KEY, 'wrong');
+    expect(blanked.sets.B.cells[2].state).toBe('blank');
+    expect(blanked.sets.B.cells[2].confirmed).toBe(true);
+    expect(countUnresolved(blanked)).toBe(0);
+  });
+
+  it('does not treat a clean blank as an unresolved answer', () => {
+    const cells = allCells(DEFAULT_KEY);
+    cells.C[0] = makeCell(1, null, 'blank');
+    const scan = makeScan(cells, DEFAULT_KEY);
+    expect(cellNeedsConfirmation(scan.sets.C.cells[0])).toBe(false);
+    expect(countUnresolved(scan)).toBe(0);
+  });
+
+  it('preserves the local crop when a cell is confirmed', () => {
+    const cells = allCells(DEFAULT_KEY);
+    cells.A[0] = {
+      ...makeCell(1, 4, 'uncertain'),
+      cropUrl: 'data:image/png;base64,AAAA',
+    };
+    const scan = makeScan(cells, DEFAULT_KEY);
+    const confirmed = correctCell(scan, 'A', 1, 4, DEFAULT_KEY, 'wrong');
+    expect(confirmed.sets.A.cells[0].cropUrl).toBe('data:image/png;base64,AAAA');
+  });
 });
 
 describe('corrections', () => {
@@ -191,6 +294,57 @@ describe('confidence flags', () => {
     expect(marked.A.cells[0].state).toBe('uncertain');
     expect(marked.A.cells[1].state).toBe('uncertain');
     expect(marked.A.cells[2].state).toBe('answered');
+  });
+
+  it('never re-flags a teacher-confirmed answer when thresholds change', () => {
+    const cells = cellsFromDigits(DEFAULT_KEY.A);
+    cells[0] = {
+      ...cells[0],
+      confidence: 0.1,
+      margin: 0.1,
+      confirmed: true,
+      corrected: true,
+    };
+    const sets = markUncertain(
+      {
+        A: {
+          set: 'A',
+          cells,
+          score: 12,
+          correct: 12,
+          answered: 12,
+          blanks: 0,
+          obstructed: 0,
+          denominator: 12,
+        },
+        ...Object.fromEntries(
+          SET_IDS.filter((set) => set !== 'A').map((set) => [
+            set,
+            {
+              set,
+              cells: cellsFromDigits(DEFAULT_KEY[set]),
+              score: 12,
+              correct: 12,
+              answered: 12,
+              blanks: 0,
+              obstructed: 0,
+              denominator: 12,
+            },
+          ]),
+        ),
+      } as Record<SetId, SetResult>,
+      VALIDATED_CONFIDENCE_THRESHOLD,
+      VALIDATED_MARGIN_THRESHOLD,
+    );
+    expect(sets.A.cells[0].state).toBe('answered');
+    const scan = makeScan(
+      Object.fromEntries(SET_IDS.map((set) => [set, sets[set].cells])) as Record<
+        SetId,
+        CellResult[]
+      >,
+      DEFAULT_KEY,
+    );
+    expect(countUnresolved(scan)).toBe(0);
   });
 });
 

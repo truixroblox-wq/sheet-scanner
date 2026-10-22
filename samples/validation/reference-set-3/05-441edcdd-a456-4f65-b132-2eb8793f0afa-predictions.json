@@ -1,0 +1,565 @@
+{
+  "source": "samples/reference-set-3/05-441edcdd-a456-4f65-b132-2eb8793f0afa.png",
+  "generatedAt": "2026-10-22T22:12:43.548Z",
+  "referenceCells": 719,
+  "sets": {
+    "A": [
+      {
+        "row": 1,
+        "key": 4,
+        "digit": 3,
+        "confidence": 0.4407,
+        "margin": 0.2114,
+        "state": "uncertain",
+        "area": 587
+      },
+      {
+        "row": 2,
+        "key": 5,
+        "digit": 5,
+        "confidence": 0.6358,
+        "margin": 0.2741,
+        "state": "uncertain",
+        "area": 632
+      },
+      {
+        "row": 3,
+        "key": 1,
+        "digit": 1,
+        "confidence": 0.6518,
+        "margin": 0.4782,
+        "state": "uncertain",
+        "area": 433
+      },
+      {
+        "row": 4,
+        "key": 2,
+        "digit": 2,
+        "confidence": 0.5902,
+        "margin": 0.1871,
+        "state": "uncertain",
+        "area": 508
+      },
+      {
+        "row": 5,
+        "key": 6,
+        "digit": 6,
+        "confidence": 0.9995,
+        "margin": 0.9991,
+        "state": "answered",
+        "area": 729
+      },
+      {
+        "row": 6,
+        "key": 3,
+        "digit": 3,
+        "confidence": 0.6167,
+        "margin": 0.3232,
+        "state": "uncertain",
+        "area": 503
+      },
+      {
+        "row": 7,
+        "key": 6,
+        "digit": 6,
+        "confidence": 0.9973,
+        "margin": 0.9946,
+        "state": "answered",
+        "area": 708
+      },
+      {
+        "row": 8,
+        "key": 2,
+        "digit": 2,
+        "confidence": 0.9945,
+        "margin": 0.9893,
+        "state": "answered",
+        "area": 503
+      },
+      {
+        "row": 9,
+        "key": 1,
+        "digit": 1,
+        "confidence": 0.7036,
+        "margin": 0.516,
+        "state": "uncertain",
+        "area": 546
+      },
+      {
+        "row": 10,
+        "key": 3,
+        "digit": 3,
+        "confidence": 0.9997,
+        "margin": 0.9994,
+        "state": "answered",
+        "area": 589
+      },
+      {
+        "row": 11,
+        "key": 4,
+        "digit": 5,
+        "confidence": 1,
+        "margin": 1,
+        "state": "answered",
+        "area": 653
+      },
+      {
+        "row": 12,
+        "key": 5,
+        "digit": 5,
+        "confidence": 0.9994,
+        "margin": 0.9989,
+        "state": "answered",
+        "area": 820
+      }
+    ],
+    "B": [
+      {
+        "row": 1,
+        "key": 2,
+        "digit": 2,
+        "confidence": 0.9971,
+        "margin": 0.9958,
+        "state": "answered",
+        "area": 504
+      },
+      {
+        "row": 2,
+        "key": 6,
+        "digit": 6,
+        "confidence": 0.9998,
+        "margin": 0.9996,
+        "state": "answered",
+        "area": 576
+      },
+      {
+        "row": 3,
+        "key": 1,
+        "digit": 7,
+        "confidence": 0.4611,
+        "margin": 0.0611,
+        "state": "uncertain",
+        "area": 412
+      },
+      {
+        "row": 4,
+        "key": 2,
+        "digit": 2,
+        "confidence": 0.9999,
+        "margin": 0.9997,
+        "state": "answered",
+        "area": 681
+      },
+      {
+        "row": 5,
+        "key": 1,
+        "digit": 1,
+        "confidence": 0.3615,
+        "margin": 0.052,
+        "state": "uncertain",
+        "area": 536
+      },
+      {
+        "row": 6,
+        "key": 3,
+        "digit": 3,
+        "confidence": 0.9987,
+        "margin": 0.998,
+        "state": "answered",
+        "area": 520
+      },
+      {
+        "row": 7,
+        "key": 5,
+        "digit": 5,
+        "confidence": 0.9998,
+        "margin": 0.9997,
+        "state": "answered",
+        "area": 597
+      },
+      {
+        "row": 8,
+        "key": 6,
+        "digit": 6,
+        "confidence": 0.9999,
+        "margin": 0.9997,
+        "state": "answered",
+        "area": 548
+      },
+      {
+        "row": 9,
+        "key": 4,
+        "digit": 4,
+        "confidence": 0.9987,
+        "margin": 0.9975,
+        "state": "answered",
+        "area": 658
+      },
+      {
+        "row": 10,
+        "key": 3,
+        "digit": 3,
+        "confidence": 1,
+        "margin": 1,
+        "state": "answered",
+        "area": 565
+      },
+      {
+        "row": 11,
+        "key": 4,
+        "digit": 4,
+        "confidence": 0.9999,
+        "margin": 0.9998,
+        "state": "answered",
+        "area": 647
+      },
+      {
+        "row": 12,
+        "key": 5,
+        "digit": 5,
+        "confidence": 0.9951,
+        "margin": 0.9903,
+        "state": "answered",
+        "area": 651
+      }
+    ],
+    "C": [
+      {
+        "row": 1,
+        "key": 8,
+        "digit": 8,
+        "confidence": 0.8914,
+        "margin": 0.8387,
+        "state": "uncertain",
+        "area": 568
+      },
+      {
+        "row": 2,
+        "key": 2,
+        "digit": 2,
+        "confidence": 0.9947,
+        "margin": 0.9901,
+        "state": "answered",
+        "area": 624
+      },
+      {
+        "row": 3,
+        "key": 3,
+        "digit": 3,
+        "confidence": 0.553,
+        "margin": 0.3336,
+        "state": "uncertain",
+        "area": 544
+      },
+      {
+        "row": 4,
+        "key": 8,
+        "digit": 8,
+        "confidence": 0.977,
+        "margin": 0.9559,
+        "state": "answered",
+        "area": 579
+      },
+      {
+        "row": 5,
+        "key": 7,
+        "digit": 7,
+        "confidence": 0.9994,
+        "margin": 0.9989,
+        "state": "answered",
+        "area": 596
+      },
+      {
+        "row": 6,
+        "key": 4,
+        "digit": 4,
+        "confidence": 0.5895,
+        "margin": 0.3378,
+        "state": "uncertain",
+        "area": 572
+      },
+      {
+        "row": 7,
+        "key": 5,
+        "digit": 5,
+        "confidence": 0.9886,
+        "margin": 0.9774,
+        "state": "answered",
+        "area": 508
+      },
+      {
+        "row": 8,
+        "key": 1,
+        "digit": 4,
+        "confidence": 0.4252,
+        "margin": 0.0904,
+        "state": "uncertain",
+        "area": 376
+      },
+      {
+        "row": 9,
+        "key": 7,
+        "digit": 7,
+        "confidence": 0.9997,
+        "margin": 0.9995,
+        "state": "answered",
+        "area": 520
+      },
+      {
+        "row": 10,
+        "key": 6,
+        "digit": 6,
+        "confidence": 0.9834,
+        "margin": 0.967,
+        "state": "answered",
+        "area": 405
+      },
+      {
+        "row": 11,
+        "key": 1,
+        "digit": 1,
+        "confidence": 0.9872,
+        "margin": 0.9789,
+        "state": "answered",
+        "area": 443
+      },
+      {
+        "row": 12,
+        "key": 2,
+        "digit": 7,
+        "confidence": 0.9998,
+        "margin": 0.9996,
+        "state": "uncertain",
+        "area": 266
+      }
+    ],
+    "D": [
+      {
+        "row": 1,
+        "key": 3,
+        "digit": 2,
+        "confidence": 0.942,
+        "margin": 0.8929,
+        "state": "uncertain",
+        "area": 224
+      },
+      {
+        "row": 2,
+        "key": 4,
+        "digit": 4,
+        "confidence": 0.9361,
+        "margin": 0.9076,
+        "state": "uncertain",
+        "area": 402
+      },
+      {
+        "row": 3,
+        "key": 3,
+        "digit": 3,
+        "confidence": 0.9866,
+        "margin": 0.9769,
+        "state": "answered",
+        "area": 464
+      },
+      {
+        "row": 4,
+        "key": 7,
+        "digit": 7,
+        "confidence": 0.9979,
+        "margin": 0.9969,
+        "state": "answered",
+        "area": 368
+      },
+      {
+        "row": 5,
+        "key": 8,
+        "digit": 8,
+        "confidence": 0.6821,
+        "margin": 0.3683,
+        "state": "uncertain",
+        "area": 598
+      },
+      {
+        "row": 6,
+        "key": 6,
+        "digit": 6,
+        "confidence": 0.9999,
+        "margin": 0.9999,
+        "state": "answered",
+        "area": 542
+      },
+      {
+        "row": 7,
+        "key": 5,
+        "digit": 5,
+        "confidence": 0.9998,
+        "margin": 0.9997,
+        "state": "answered",
+        "area": 503
+      },
+      {
+        "row": 8,
+        "key": 4,
+        "digit": 4,
+        "confidence": 0.9992,
+        "margin": 0.9988,
+        "state": "answered",
+        "area": 421
+      },
+      {
+        "row": 9,
+        "key": 1,
+        "digit": 1,
+        "confidence": 0.6747,
+        "margin": 0.5273,
+        "state": "uncertain",
+        "area": 428
+      },
+      {
+        "row": 10,
+        "key": 2,
+        "digit": 2,
+        "confidence": 0.9916,
+        "margin": 0.9869,
+        "state": "answered",
+        "area": 594
+      },
+      {
+        "row": 11,
+        "key": 5,
+        "digit": 5,
+        "confidence": 0.8679,
+        "margin": 0.7482,
+        "state": "uncertain",
+        "area": 536
+      },
+      {
+        "row": 12,
+        "key": 6,
+        "digit": 7,
+        "confidence": 0.9014,
+        "margin": 0.8429,
+        "state": "uncertain",
+        "area": 418
+      }
+    ],
+    "E": [
+      {
+        "row": 1,
+        "key": 7,
+        "digit": 7,
+        "confidence": 0.8961,
+        "margin": 0.8553,
+        "state": "uncertain",
+        "area": 347
+      },
+      {
+        "row": 2,
+        "key": 6,
+        "digit": 2,
+        "confidence": 0.9845,
+        "margin": 0.9801,
+        "state": "uncertain",
+        "area": 269
+      },
+      {
+        "row": 3,
+        "key": 8,
+        "digit": 8,
+        "confidence": 0.8957,
+        "margin": 0.8294,
+        "state": "uncertain",
+        "area": 623
+      },
+      {
+        "row": 4,
+        "key": 2,
+        "digit": 2,
+        "confidence": 0.9996,
+        "margin": 0.9994,
+        "state": "answered",
+        "area": 511
+      },
+      {
+        "row": 5,
+        "key": 1,
+        "digit": 1,
+        "confidence": 0.814,
+        "margin": 0.6652,
+        "state": "uncertain",
+        "area": 483
+      },
+      {
+        "row": 6,
+        "key": 5,
+        "digit": 5,
+        "confidence": 0.993,
+        "margin": 0.9899,
+        "state": "answered",
+        "area": 592
+      },
+      {
+        "row": 7,
+        "key": 1,
+        "digit": 3,
+        "confidence": 0.9993,
+        "margin": 0.999,
+        "state": "answered",
+        "area": 414
+      },
+      {
+        "row": 8,
+        "key": 6,
+        "digit": 1,
+        "confidence": 0.5449,
+        "margin": 0.3109,
+        "state": "uncertain",
+        "area": 297
+      },
+      {
+        "row": 9,
+        "key": 3,
+        "digit": 1,
+        "confidence": 0.5801,
+        "margin": 0.2272,
+        "state": "uncertain",
+        "area": 574
+      },
+      {
+        "row": 10,
+        "key": 2,
+        "digit": 1,
+        "confidence": 0.5983,
+        "margin": 0.4033,
+        "state": "uncertain",
+        "area": 394
+      },
+      {
+        "row": 11,
+        "key": 4,
+        "digit": 7,
+        "confidence": 0.9733,
+        "margin": 0.9572,
+        "state": "answered",
+        "area": 474
+      },
+      {
+        "row": 12,
+        "key": 5,
+        "digit": 2,
+        "confidence": 0.9878,
+        "margin": 0.9797,
+        "state": "answered",
+        "area": 535
+      }
+    ]
+  },
+  "score": {
+    "A": 10,
+    "B": 11,
+    "C": 10,
+    "D": 10,
+    "E": 5,
+    "total": 46
+  }
+}
