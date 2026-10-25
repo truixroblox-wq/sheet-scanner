@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import type {
   AnswerKey,
-  AppSettings,
   ScanProgress,
   ScanResult,
   SetId,
 } from '../types';
 import { SET_IDS } from '../types';
 import { countUnresolved } from '../lib/scoring';
-import { CameraPanel } from './CameraPanel';
 import { ConfirmationPanel } from './ConfirmationPanel';
 import { ResultSummary } from './ResultSummary';
 import { ReviewView } from './ReviewView';
@@ -28,38 +26,30 @@ export function ScanView({
   queue,
   busy,
   progress,
-  settings,
   answerKey,
-  onCapture,
   onFiles,
   onScanAnother,
   onSelectScan,
   onCorrect,
   onDelete,
   onExport,
-  onAutoCaptureChange,
 }: {
   currentScan: ScanResult | null;
   scans: ScanResult[];
   queue: QueueItem[];
   busy: boolean;
   progress: ScanProgress | null;
-  settings: AppSettings;
   answerKey: AnswerKey;
-  onCapture: (canvas: HTMLCanvasElement) => void;
   onFiles: (files: File[]) => void;
   onScanAnother: () => void;
   onSelectScan: (id: string) => void;
   onCorrect: (set: SetId, row: number, digit: number | null) => void;
   onDelete: () => void;
   onExport: () => void;
-  onAutoCaptureChange: (value: boolean) => void;
 }) {
   const [drag, setDrag] = useState(false);
-  const [cameraStartSignal, setCameraStartSignal] = useState(0);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const resultRef = useRef<HTMLDivElement | null>(null);
-  const cameraRef = useRef<HTMLDivElement | null>(null);
 
   const currentId = currentScan?.id ?? null;
   useEffect(() => {
@@ -68,11 +58,6 @@ export function ScanView({
   }, [currentId]);
 
   const chooseFiles = () => fileRef.current?.click();
-
-  const startCamera = () => {
-    setCameraStartSignal((value) => value + 1);
-    cameraRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
 
   const acceptFiles = (files: File[]) => {
     const images = files.filter((file) => file.type.startsWith('image/'));
@@ -96,19 +81,19 @@ export function ScanView({
 
       <section className="hero">
         <div className="hero-copy">
-          <div className="eyebrow">Standard Progressive Matrices · Sets A–E</div>
-          <h1>Scan the sheet. Read the score.</h1>
+          <div className="eyebrow">Standard Progressive Matrices • Sets A–E</div>
+          <h1>Upload the sheet. Read the score.</h1>
           <p className="hero-sub">
             One answer table per image. The scanner reads only the handwritten student column,
             ignores red annotations and printed totals, then asks you to confirm uncertain answers
             before it releases the Set A–E scores and total.
           </p>
           <div className="hero-actions">
-            <button className="btn btn-primary btn-xl" onClick={startCamera} disabled={busy}>
-              Scan answer sheet
+            <button className="btn btn-primary btn-xl" onClick={chooseFiles} disabled={busy}>
+              Upload answer sheets
             </button>
             <button className="btn btn-outline btn-xl" onClick={chooseFiles} disabled={busy}>
-              Upload image
+              Batch upload
             </button>
           </div>
           <div className="hero-meta">
@@ -120,8 +105,8 @@ export function ScanView({
           <div>
             <span className="hero-number">1</span>
             <div>
-              <strong>Capture or upload</strong>
-              <span>Use the rear camera or choose a JPG/PNG photo.</span>
+              <strong>Upload one sheet or a batch</strong>
+              <span>Choose JPG or PNG photos, or drop them onto the upload panel.</span>
             </div>
           </div>
           <div>
@@ -148,15 +133,39 @@ export function ScanView({
 
       <div className="scan-layout">
         <div className="scan-main">
-          <div ref={cameraRef}>
-            <CameraPanel
-              onCapture={onCapture}
-              busy={busy}
-              autoCapture={settings.autoCapture}
-              onAutoCaptureChange={onAutoCaptureChange}
-              startSignal={cameraStartSignal}
-            />
-          </div>
+          <section className="card upload-card">
+            <div className="card-head">
+              <h2>Upload answer sheets</h2>
+              <span className="muted">Single or batch</span>
+            </div>
+            <div className="card-pad">
+              <div
+                className={`dropzone ${drag ? 'drag' : ''}`}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setDrag(true);
+                }}
+                onDragLeave={() => setDrag(false)}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setDrag(false);
+                  acceptFiles(Array.from(event.dataTransfer.files));
+                }}
+              >
+                <strong>Drop answer-sheet photos here</strong>
+                JPG or PNG. Batch files are scanned one at a time and shown as separate results.
+                <div className="dropzone-action">
+                  <button className="btn btn-outline btn-sm" onClick={chooseFiles} disabled={busy}>
+                    Choose images
+                  </button>
+                </div>
+              </div>
+              <p className="privacy-note">
+                <span className="dot" />
+                Built-in recognition. Images never leave this browser.
+              </p>
+            </div>
+          </section>
 
           {currentScan && (
             <div className="result-stack" ref={resultRef}>
@@ -191,40 +200,6 @@ export function ScanView({
         </div>
 
         <aside className="scan-side">
-          <section className="card">
-            <div className="card-head">
-              <h2>Upload</h2>
-              <span className="muted">Single or batch</span>
-            </div>
-            <div className="card-pad">
-              <div
-                className={`dropzone ${drag ? 'drag' : ''}`}
-                onDragOver={(event) => {
-                  event.preventDefault();
-                  setDrag(true);
-                }}
-                onDragLeave={() => setDrag(false)}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  setDrag(false);
-                  acceptFiles(Array.from(event.dataTransfer.files));
-                }}
-              >
-                <strong>Drop answer-sheet photos here</strong>
-                JPG or PNG. Batch files are scanned one at a time and shown as separate results.
-                <div className="dropzone-action">
-                  <button className="btn btn-outline btn-sm" onClick={chooseFiles} disabled={busy}>
-                    Choose images
-                  </button>
-                </div>
-              </div>
-              <p className="privacy-note">
-                <span className="dot" />
-                Built-in recognition. Images never leave this browser.
-              </p>
-            </div>
-          </section>
-
           {queue.length > 0 && (
             <section className="card">
               <div className="card-head">
@@ -274,11 +249,11 @@ export function ScanView({
                           <div className="batch-scores">
                             {pending > 0
                               ? `${pending} answer${pending === 1 ? '' : 's'} need confirmation`
-                              : SET_IDS.map((set) => `${set} ${scan.sets[set].score}`).join(' · ')}
+                              : SET_IDS.map((set) => `${set} ${scan.sets[set].score}`).join(' • ')}
                           </div>
                           <div className="tiny batch-time">
                             {(scan.durationMs / 1000).toFixed(2)} s
-                            {scan.quality.warnings.length ? ' · quality warning' : ''}
+                            {scan.quality.warnings.length ? ' • quality warning' : ''}
                           </div>
                         </span>
                         <span className={`batch-total ${pending > 0 ? 'pending' : ''}`}>
@@ -334,8 +309,8 @@ function ReviewSection({
           <strong>All 60 answers</strong>
           <span className="muted">
             {pending > 0
-              ? `${pending} need confirmation · final score locked`
-              : 'All unresolved answers confirmed · corrections are optional'}
+              ? `${pending} need confirmation — final score locked`
+              : 'All unresolved answers confirmed — corrections are optional'}
           </span>
         </span>
         <span className="review-cta">{open ? 'Hide grid' : 'Open full grid'}</span>
@@ -365,7 +340,7 @@ function ScanProgressCard({ progress }: { progress: ScanProgress | null }) {
         <span className="spinner" aria-hidden />
         <div>
           <strong>{progress?.label ?? 'Scanning answer sheet'}</strong>
-          <span>Local recognition · the page stays responsive</span>
+          <span>Local recognition — the page stays responsive</span>
         </div>
         <span className="progress-value">
           {reading && progress ? `${progress.completed}/${progress.total}` : `${percent}%`}

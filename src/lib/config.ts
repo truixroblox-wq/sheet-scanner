@@ -26,7 +26,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   blankPolicy: 'wrong',
   confidenceThreshold: VALIDATED_CONFIDENCE_THRESHOLD,
   marginThreshold: VALIDATED_MARGIN_THRESHOLD,
-  autoCapture: true,
   duplicateGuard: true,
 };
 

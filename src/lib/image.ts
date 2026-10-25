@@ -41,16 +41,6 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-export function videoFrameToCanvas(video: HTMLVideoElement): HTMLCanvasElement {
-  const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth || 1280;
-  canvas.height = video.videoHeight || 720;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Could not create a drawing surface.');
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  return canvas;
-}
-
 const HASH_W = 9;
 const HASH_H = 8;
 
@@ -89,41 +79,6 @@ export function hammingDistance(a: string, b: string): number {
     }
   }
   return distance;
-}
-
-/** Downscale a video frame and return mean absolute difference and edge energy. */
-export function frameSignature(canvas: HTMLCanvasElement): { pixels: Uint8ClampedArray; edge: number } {
-  const w = 96;
-  const h = 72;
-  const small = document.createElement('canvas');
-  small.width = w;
-  small.height = h;
-  const ctx = small.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return { pixels: new Uint8ClampedArray(w * h), edge: 0 };
-  ctx.drawImage(canvas, 0, 0, w, h);
-  const image = ctx.getImageData(0, 0, w, h).data;
-  const pixels = new Uint8ClampedArray(w * h);
-  let edge = 0;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const i = (y * w + x) * 4;
-      const gray = 0.299 * image[i] + 0.587 * image[i + 1] + 0.114 * image[i + 2];
-      pixels[y * w + x] = gray;
-      if (x > 0 && y > 0) {
-        const left = pixels[y * w + x - 1];
-        const up = pixels[(y - 1) * w + x];
-        edge += Math.abs(gray - left) + Math.abs(gray - up);
-      }
-    }
-  }
-  return { pixels, edge: edge / (w * h) };
-}
-
-export function meanDifference(a: Uint8ClampedArray, b: Uint8ClampedArray): number {
-  const length = Math.min(a.length, b.length);
-  let sum = 0;
-  for (let i = 0; i < length; i++) sum += Math.abs(a[i] - b[i]);
-  return sum / length;
 }
 
 /**

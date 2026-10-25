@@ -9,7 +9,7 @@ Everything runs in the browser. There is no backend, account, student identity, 
 
 ## What the app does
 
-1. **Capture or upload** one complete answer table per image. The camera uses the rear camera where available; drag-and-drop and batch upload are also supported.
+1. **Upload** one complete answer table per image. Drag-and-drop, a single-file picker, and multi-file batch upload are supported. There is no live camera, camera permission, or capture panel.
 2. **Read the student column locally.** The scanner detects the table, corrects perspective, aligns the printed grid, removes red ink, and recognizes handwritten digits 1–8.
 3. **Cross-check decisive readings against verified references.** A small HOG nearest-neighbour corpus built from hand-verified answer sheets acts as a second opinion. If it strongly disagrees with a confident CNN reading, or if a handwritten 7 contains an enclosed region, the cell is sent to review. The reference check never replaces the CNN digit.
 4. **Confirm every uncertain answer.** Low-confidence, ambiguous, unreadable, and obstructed cells are marked **Needs confirmation**. A step-by-step panel shows the cropped answer cell and asks the teacher to choose 1–8 or mark it blank. The model's tentative digit is not displayed or used for those cells.
@@ -51,8 +51,9 @@ The settings panel also exposes:
 
 - Confidence gate: **96% validated default**
 - Confusion-margin gate: **90% validated default**
-- Auto-capture
 - Duplicate-image guard
+
+The upload card is the primary action. Both **Upload answer sheets** and **Batch upload** open the multi-file picker; a batch is processed as separate sheets and never merged into one score.
 
 The confidence gate is deliberately strict. It was selected from real labeled cells, not tuned to maximize automatic acceptance; lowering it silently accepts known misreads. The settings panel includes a one-click reset to the validated gate.
 
@@ -142,6 +143,58 @@ Reproduce the reference metrics and write the per-cell predictions:
 npx.cmd tsx scripts/validate-reference-set-3.ts
 ```
 
+## Student-set-1 import and held-out validation
+
+All 64 accessible JPEGs supplied for the new student set were imported under `samples/student-set-1/` as `S001`–`S064`. The manifest records SHA-256, dimensions, quality, table detection, red-ink ratio, usability, and duplicate fingerprints. Results:
+
+- **64 unique images** (no duplicate byte hashes); **all 64 tables detected**; all usable.
+- `S013` is the printed official answer key and is **excluded** from handwritten labels and evaluation.
+- The full originals are preserved separately. The review material uses anonymized, table-only crops. No student names or source filenames are written into the label or validation reports.
+- Eight sheets (`S001`–`S008`) were hand-checked cell by cell: **479 clean labels** plus **one obstructed cell** (`S001-A6`) marked unknown, not guessed. The labels are in `samples/student-set-1/labels.json`.
+- Development split: `S001`–`S004` (239 cells). Held-out test split: `S005`–`S008` (240 cells).
+
+### Production result (default legacy grouping)
+
+| Metric | All | Development | Held-out test |
+| --- | ---: | ---: | ---: |
+| Verified cells | 479 | 239 | 240 |
+| Correct digit | 430 (89.8%) | 214 (89.5%) | 216 (90.0%) |
+| Auto-accepted | 321 (67.0%) | 168 (70.3%) | 153 (63.7%) |
+| Auto-accept precision | **99.1%** | 98.2% | **100.0%** |
+| High-confidence errors | 3 | 3 | 0 |
+| Gate-passing errors | 13 | 10 | 3 |
+
+Per-digit accuracy: 1 87.1%, 2 88.4%, 3 86.3%, 4 90.3%, 5 90.6%, 6 96.8%, 7 95.1%, 8 83.8%. Per-set accuracy: A 89.5%, B 89.6%, C 87.5%, D 91.7%, E 90.6%. The dominant confusions are `7 -> 1/2/3` (20 cells). The three high-confidence errors are `S003-C2` (7 vs 2), `S003-C9` (7 vs 1), and `S004-A6` (5 vs 3). `S004-A6` is a clean 3 read as 5 at 100% confidence; it is a real CNN domain failure, not a preprocessing failure.
+
+The table's 13 gate-passing errors are raw CNN readings that pass the 96% / 90% thresholds **before** the reference/hole second opinion. Ten are converted to review by that check, leaving the three auto-accepted errors shown above. This is why the auto-accept precision is 99.1% despite the lower raw digit accuracy. The remaining 158 cells (33.0%) are uncertain or blank and are routed to confirmation; two of those "blank" decisions are actually clear handwritten 1s that the extractor missed (`S001-B3` and `S001-E11`), so they are counted as recognition errors rather than unknown labels.
+
+### Tested but rejected: merged split-stroke grouping
+
+A second grouping mode was implemented and measured. It joins vertically split pen strokes (for example a 1 written in two parts), which raises raw accuracy slightly:
+
+| Metric | Legacy (production) | Merged experiment |
+| --- | ---: | ---: |
+| All correct | 430/479 (89.8%) | 435/479 (90.8%) |
+| Held-out test | 216/240 (90.0%) | 220/240 (91.7%) |
+| Auto-accept precision | 99.1% | 98.8% |
+| High-confidence errors | 3 | 4 |
+
+Merged grouping is **not used in production**. It makes `S003-B3` (actual 1) a new auto-accepted 7 at 99% confidence, and it lowers overall auto-accept precision. That is a worse review-safety trade-off even though raw accuracy is higher. The option remains available for future data, but the scanner defaults to the legacy grouping. This decision is recorded in `samples/student-set-1/validation-report-merged-experiment.json`.
+
+### Is 99% reached?
+
+**No.** The measured production accuracy is **89.8% overall and 90.0% on held-out sheets**, about nine percentage points short of 99%. Reaching 99% on these 479 cells would mean at most 4 errors instead of 49. The remaining errors are genuine classifier failures (`7` vs `1/2/3`, `2` vs `8`, and the clean `S004-A6` 5 vs 3), not threshold mistakes. Lowering the confidence gate would only auto-accept more errors; it cannot improve digit accuracy. A credible path to 99% requires actual classifier adaptation or retraining and a much larger, more varied hand-labeled set from many writers. It is not achievable with threshold tuning or the current 479-cell evaluation alone.
+
+The conservative gate still matters: auto-accepted readings are **99.1% correct overall and 100% correct on the held-out sheets**, while uncertain cells are sent to the teacher. The score remains locked until those cells are confirmed.
+
+Reproduce the production and experimental reports:
+
+```powershell
+npx.cmd tsx scripts/validate-student-set.ts --mode legacy --side 0 --errors --json-out samples/student-set-1/validation-report-legacy.json
+npx.cmd tsx scripts/validate-student-set.ts --mode merged --side 0 --errors --json-out samples/student-set-1/validation-report-merged-experiment.json
+npx.cmd tsx scripts/benchmark-student-set.ts
+```
+
 ## Recognition pipeline
 
 The app keeps the existing dependency-free TypeScript pipeline:
@@ -167,6 +220,16 @@ Measured on `samples/reference-2.png` with `scripts/benchmark-scan.ts` (Node, sa
 | Full pipeline benchmark | 609–611 ms | 286–321 ms |
 | Recognition only | 456–457 ms | 146–169 ms |
 
+Full student-set-1 benchmark over all **64 originals** (`scripts/benchmark-student-set.ts`, Node, same production stages, warm model/reference, decode included in the total):
+
+- **64/64 tables detected**
+- **Mean 413 ms/sheet; median 398 ms; p95 497 ms; min 355 ms; max 557 ms**
+- Mean phases: detection 41 ms, rectification 55 ms, grid+crop 26 ms, recognition 99 ms; the rest is JPEG decode/resize in the Node harness
+- Rectified-table validation (`scripts/validate-student-set.ts`) takes **283 ms mean / 275 ms median** for grid+crop and 60 recognitions
+- Browser production preview: single `S001` completed in **0.53 s**. A two-file batch completed in **0.56 s** for `S002` and **1.76 s** for `S003`; the same `S003` alone then completed in **0.55 s**. The 1.76 s reading is a real main-thread/render-contention outlier in that batch, not a stable recognition cost.
+
+Typical clean sheets are below one second, excluding one-time model/reference loading and the browser's own file decode. The 1 s target is met in the median/typical case, not as a hard guarantee for every batch item under browser contention.
+
 Additional checks:
 
 - `scripts/test-warp.ts`: recognition improved from 365–414 ms to 154–170 ms.
@@ -184,18 +247,19 @@ npx.cmd tsx scripts/benchmark-scan.ts samples/reference-2.png
 
 ## Tests
 
-The suite covers scoring invariants, blank policy, malformed keys, all five sets, permitted digits, blank/obstructed handling, red-annotation rejection, confirmation gating, confirmed-cell trust, crop preservation, rotated handwriting, duplicate-image protection, intentional rescans, HOG/hole features, the reference vote, the conservative flag rule, the embedded corpus, and reference integration.
+The suite covers scoring invariants, blank policy, malformed keys, all five sets, permitted digits, blank/obstructed handling, red-annotation rejection, confirmation gating, confirmed-cell trust, crop preservation, rotated handwriting, duplicate-image protection, intentional rescans, HOG/hole features, the reference vote, the conservative flag rule, the embedded corpus, and reference integration. New coverage verifies merged split-stroke grouping, the 64-image import manifest, the hand-verified label shape, the S013 exclusion, the absence of camera APIs/components, and the upload-first UI with a multi-file picker.
 
-`tests/reference.test.ts` covers descriptor shape, enclosed-region counting, nearest-reference voting, the flag threshold, and corpus loading. `tests/validation.test.ts` pins the reference-2 confirmation gate, the 40/60 model score, the 44/60 confirmed score, and the rule that the reference check flags without replacing the CNN digit.
+`tests/reference.test.ts` covers descriptor shape, enclosed-region counting, nearest-reference voting, the flag threshold, and corpus loading. `tests/validation.test.ts` pins the reference-2 confirmation gate, the 40/60 model score, the 44/60 confirmed score, and the rule that the reference check flags without replacing the CNN digit. `tests/student-set.test.ts`, `tests/preprocess.test.ts`, and `tests/camera-removal.test.ts` cover the new import/label/UI guarantees.
 
-The synthetic `samples/proto-warp.png` fixture is used for grid/layout regression only. Exact recognition accuracy is pinned on the hand-labeled `reference-2` and reference-set-3 sheets; the synthetic warp is not a labeled accuracy set.
+The synthetic `samples/proto-warp.png` fixture is used for grid/layout regression only. Exact recognition accuracy is pinned on the hand-labeled `reference-2`, reference-set-3, and student-set-1 subsets; the synthetic warp is not a labeled accuracy set.
 
 Current result:
 
-- `npm.cmd run test`: **52 tests passed** across 6 files
+- `npm.cmd run test`: **59 tests passed** across 9 files
 - `npm.cmd run typecheck`: passed
 - `npm.cmd run lint`: passed
 - `npm.cmd run build`: passed
+- Production preview upload smoke test: single `S001` scanned in 0.53 s with 18 cells to confirm; batch `S002` + `S003` produced 2 separate results, 2/2 done, in 0.56 s and 1.76 s (S003 alone then took 0.55 s; see the performance note about the batch outlier).
 
 The total is asserted to equal the sum of Sets A–E and to never exceed 60 in randomized sheets. The integration test confirms the untouched sample remains 40/60 with the documented ambiguous cells still flagged; the validation test confirms the confirmation gate exposes all known misreads.
 
@@ -214,9 +278,11 @@ The production bundle embeds the recognition model and the reference corpus, and
 
 ## Browser support and limitations
 
-- Camera access requires HTTPS or localhost. Over plain HTTP the app explains the limitation and recommends image upload.
+- There is no live camera. Answer sheets are uploaded through the file picker or drag-and-drop; batch upload is supported.
 - Handwriting recognition is sensitive to severe blur, glare, shadows, very small writing, and heavily obstructed cells. Low-confidence and obstructed cells are flagged rather than presented as certain.
-- The reference check is conservative: it catches style disagreements it has seen before, but it cannot catch every confident error. Four unusual 4/6/7 cells remain in the 11-sheet validation set.
+- The 99% target was **not reached**. Production digit accuracy is 89.8% overall and 90.0% on the held-out student-set-1 sheets. Only 8 of the 64 imported images have hand-verified labels (479 clean cells); the other 56 were imported, quality-checked, and table-detected but are not part of the accuracy estimate.
+- The reference check is conservative: it catches style disagreements it has seen before, but it cannot catch every confident error. Four unusual 4/6/7 cells remain in the 11-sheet reference-set-3 validation, and the new set still has three high-confidence errors, including a clean 3 read as 5.
+- `S013` is the printed official answer key and is excluded. `S001-A6` is excluded as obstructed/unknown rather than guessed.
 - Printed totals, teacher keys, and red annotations are ignored by design.
 - A teacher key or an almost-empty sheet can look like a student sheet with many missing answers. The app shows a prominent warning in that case.
-- Physical camera behavior and a live Netlify deployment were not exercised in this environment; the production build was verified locally.
+- A live Netlify deployment was not exercised in this environment; the production build and local preview were verified.

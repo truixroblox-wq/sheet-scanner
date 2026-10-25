@@ -204,19 +204,6 @@ export function KeyView({
 
           <div className="settings-row">
             <div className="grow">
-              <strong>Auto-capture</strong>
-              <p>Capture automatically after the camera frame has been stable for about one second.</p>
-            </div>
-            <button
-              className={`switch ${settings.autoCapture ? 'on' : ''}`}
-              aria-label="Toggle auto-capture"
-              aria-pressed={settings.autoCapture}
-              onClick={() => onSettingsChange({ autoCapture: !settings.autoCapture })}
-            />
-          </div>
-
-          <div className="settings-row">
-            <div className="grow">
               <strong>Duplicate-sheet guard</strong>
               <p>Skip a file that perceptually matches another sheet in the same batch. A new scan starts a clean session, so intentional rescans are allowed.</p>
             </div>

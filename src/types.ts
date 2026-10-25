@@ -70,6 +70,5 @@ export interface AppSettings {
   blankPolicy: BlankPolicy;
   confidenceThreshold: number;
   marginThreshold: number;
-  autoCapture: boolean;
   duplicateGuard: boolean;
 }

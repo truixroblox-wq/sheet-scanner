@@ -46,24 +46,28 @@ function loadSettings(): AppSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_STORAGE);
     if (raw) {
-      const parsed = JSON.parse(raw) as Partial<AppSettings>;
+      const parsed = JSON.parse(raw) as Partial<AppSettings> & { autoCapture?: unknown };
+      // Drop the obsolete camera setting if it is still present in local
+      // storage from an older build.
+      const stored: Partial<AppSettings> & { autoCapture?: unknown } = { ...parsed };
+      delete stored.autoCapture;
       // The previous build stored the unvalidated 0.70 / 0.35 gate. Upgrade that
       // exact legacy pair so existing browsers pick up the validated default.
       const legacyGate =
-        Number(parsed.confidenceThreshold) === 0.7 && Number(parsed.marginThreshold) === 0.35;
+        Number(stored.confidenceThreshold) === 0.7 && Number(stored.marginThreshold) === 0.35;
       return {
         ...DEFAULT_SETTINGS,
-        ...parsed,
+        ...stored,
         confidenceThreshold: legacyGate
           ? DEFAULT_SETTINGS.confidenceThreshold
           : clamp(
-              Number(parsed.confidenceThreshold) || DEFAULT_SETTINGS.confidenceThreshold,
+              Number(stored.confidenceThreshold) || DEFAULT_SETTINGS.confidenceThreshold,
               0.3,
               0.99,
             ),
         marginThreshold: legacyGate
           ? DEFAULT_SETTINGS.marginThreshold
-          : clamp(Number(parsed.marginThreshold) || DEFAULT_SETTINGS.marginThreshold, 0.1, 0.99),
+          : clamp(Number(stored.marginThreshold) || DEFAULT_SETTINGS.marginThreshold, 0.1, 0.99),
       };
     }
   } catch {
@@ -258,45 +262,6 @@ export default function App() {
     [beginScanSession, busy, processQueue],
   );
 
-  const handleCapture = useCallback(
-    async (canvas: HTMLCanvasElement) => {
-      if (busy || processingRef.current) return;
-      beginScanSession();
-      const scanNumber = nextNumberRef.current++;
-      const queueId = crypto.randomUUID();
-      setQueue([{ id: queueId, scanNumber, status: 'processing', message: 'Reading image…' }]);
-      setBusy(true);
-      setProgress({ stage: 'preparing', label: 'Reading the camera frame', completed: 0, total: 60 });
-      try {
-        const scan = await runCanvas(canvas, scanNumber);
-        if (!scan) {
-          updateQueue(queueId, { status: 'done', message: 'Duplicate image — skipped' });
-          setNotice('This image matches a sheet already in this batch.');
-        } else {
-          updateQueue(queueId, {
-            status: 'done',
-            message: scanQueueMessage(scan),
-          });
-          const pending = countUnresolved(scan);
-          if (pending > 0) {
-            setNotice(
-              `${pending} answer${pending === 1 ? '' : 's'} need confirmation. ` +
-                'The final score stays locked until each one is reviewed.',
-            );
-          }
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Could not read this sheet.';
-        updateQueue(queueId, { status: 'error', message });
-        setNotice(message);
-      } finally {
-        setBusy(false);
-        setProgress(null);
-      }
-    },
-    [beginScanSession, busy, runCanvas, updateQueue],
-  );
-
   const handleScanAnother = useCallback(() => {
     if (busy || processingRef.current) return;
     beginScanSession();
@@ -418,7 +383,7 @@ export default function App() {
             </div>
             <div>
               <div className="brand-title">SPM Quick Score</div>
-              <div className="brand-sub">Sets A–E · fast local scanning</div>
+              <div className="brand-sub">Sets A–E • fast local scanning</div>
             </div>
           </div>
           <div className="header-actions">
@@ -445,16 +410,13 @@ export default function App() {
               queue={queue}
               busy={busy}
               progress={progress}
-              settings={settings}
               answerKey={answerKey}
-              onCapture={handleCapture}
               onFiles={handleFiles}
               onScanAnother={handleScanAnother}
               onSelectScan={handleSelectScan}
               onCorrect={handleCorrect}
               onDelete={handleDelete}
               onExport={handleExportScan}
-              onAutoCaptureChange={(value) => setSettings((s) => ({ ...s, autoCapture: value }))}
             />
           ) : (
             <KeyView
@@ -476,8 +438,8 @@ export default function App() {
 
       <footer className="footer">
         <div className="shell footer-inner">
-          <span>Runs entirely in this browser · no uploads, accounts, or student records</span>
-          <span>Handwritten student column only · printed totals ignored</span>
+          <span>Runs entirely in this browser — no uploads, accounts, or student records</span>
+          <span>Handwritten student column only — printed totals ignored</span>
         </div>
       </footer>
 
@@ -514,7 +476,7 @@ function scanQueueMessage(scan: ScanResult): string {
   const pending = countUnresolved(scan);
   const duration = `${(scan.durationMs / 1000).toFixed(2)} s`;
   if (pending > 0) {
-    return `Needs confirmation · ${pending} answer${pending === 1 ? '' : 's'} · ${duration}`;
+    return `Needs confirmation — ${pending} answer${pending === 1 ? '' : 's'} — ${duration}`;
   }
-  return `${scan.total}/60 · ${duration}`;
+  return `${scan.total}/60 — ${duration}`;
 }

@@ -15,6 +15,8 @@ export interface RecognitionSettings {
 export interface RecognitionOptions {
   /** Optional verified-reference corpus used as a second opinion. */
   referenceCorpus?: ReferenceCorpus | null;
+  /** Stroke grouping mode. Defaults to the legacy path. */
+  segmentation?: 'legacy' | 'merged';
 }
 
 const ROTATION_ANGLES = [-8, 8] as const;
@@ -100,7 +102,7 @@ export function recognizeCell(
   row: number,
   options?: RecognitionOptions,
 ): CellResult {
-  const extraction = extractCell(cell);
+  const extraction = extractCell(cell, { grouping: options?.segmentation });
   const best = extraction.best;
   const tooDark = extraction.meanBackground < 45;
   const tooMuchDark = extraction.darkRatio > 0.25;
