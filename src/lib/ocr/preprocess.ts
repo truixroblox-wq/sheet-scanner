@@ -40,6 +40,15 @@ export interface CellExtraction {
   meanBackground: number;
 }
 
+export interface ExtractionOptions {
+  /**
+   * `legacy` keeps the original nearest-largest-component grouping. `merged`
+   * joins vertically split strokes (pen lifts in 1, 4, 6, 7) before choosing
+   * the digit box. The merged mode is opt-in so both can be measured.
+   */
+  grouping?: 'legacy' | 'merged';
+}
+
 function boxBlur(gray: Float32Array, w: number, h: number, radius: number): Float32Array {
   const tmp = new Float32Array(w * h);
   const out = new Float32Array(w * h);
@@ -68,7 +77,7 @@ function boxBlur(gray: Float32Array, w: number, h: number, radius: number): Floa
   return out;
 }
 
-export function extractCell(cell: ImageData): CellExtraction {
+export function extractCell(cell: ImageData, options: ExtractionOptions = {}): CellExtraction {
   const { width: w, height: h, data } = cell;
   const gray = new Float32Array(w * h);
   const ink = new Uint8Array(w * h);
@@ -201,56 +210,12 @@ export function extractCell(cell: ImageData): CellExtraction {
     return true;
   });
 
-  // Group strokes around the largest compact component. This keeps nearby grid
-  // fragments out of the digit bounding box.
-  const groups: BBox[] = [];
-  const used = new Set<number>();
-  const ordered = [...digitComps].sort((a, b) => b.area - a.area);
-  for (const c of ordered) {
-    if (used.has(c.id)) continue;
-    const group = {
-      comps: [c],
-      minX: c.minX,
-      maxX: c.maxX,
-      minY: c.minY,
-      maxY: c.maxY,
-      area: c.area,
-    };
-    used.add(c.id);
-    const cx = c.sumX;
-    const cy = c.sumY;
-    let grew = true;
-    while (grew) {
-      grew = false;
-      for (const d of ordered) {
-        if (used.has(d.id)) continue;
-        if (Math.abs(d.sumX - cx) > w * 0.22 || Math.abs(d.sumY - cy) > h * 0.32) continue;
-        const gapX = Math.max(0, Math.max(group.minX - d.maxX, d.minX - group.maxX));
-        const gapY = Math.max(0, Math.max(group.minY - d.maxY, d.minY - group.maxY));
-        const mergedW = Math.max(group.maxX, d.maxX) - Math.min(group.minX, d.minX) + 1;
-        const mergedH = Math.max(group.maxY, d.maxY) - Math.min(group.minY, d.minY) + 1;
-        if (mergedW > w * 0.6 || mergedH > h * 0.92) continue;
-        if (gapX <= Math.max(8, w * 0.18) && gapY <= Math.max(6, h * 0.4)) {
-          group.comps.push(d);
-          used.add(d.id);
-          grew = true;
-          group.minX = Math.min(group.minX, d.minX);
-          group.maxX = Math.max(group.maxX, d.maxX);
-          group.minY = Math.min(group.minY, d.minY);
-          group.maxY = Math.max(group.maxY, d.maxY);
-          group.area += d.area;
-        }
-      }
-    }
-    groups.push({
-      minX: group.minX,
-      maxX: group.maxX,
-      minY: group.minY,
-      maxY: group.maxY,
-      area: group.area,
-    });
-  }
-  groups.sort((a, b) => b.area - a.area);
+  // Group strokes into candidate digits. The legacy path starts at the largest
+  // compact component; the merged path also joins vertically split strokes.
+  const groups =
+    options.grouping === 'merged'
+      ? groupMergedComponents(digitComps, w, h)
+      : groupLegacyComponents(digitComps, w, h);
 
   return {
     width: w,
@@ -266,6 +231,151 @@ export function extractCell(cell: ImageData): CellExtraction {
     threshold,
     meanBackground,
   };
+}
+
+function gaps(a: BBox, b: BBox): { x: number; y: number; overlapX: number; overlapY: number } {
+  return {
+    x: Math.max(0, Math.max(a.minX - b.maxX, b.minX - a.maxX)),
+    y: Math.max(0, Math.max(a.minY - b.maxY, b.minY - a.maxY)),
+    overlapX: Math.max(0, Math.min(a.maxX, b.maxX) - Math.max(a.minX, b.minX) + 1),
+    overlapY: Math.max(0, Math.min(a.maxY, b.maxY) - Math.max(a.minY, b.minY) + 1),
+  };
+}
+
+function mergeGroup(comps: Component[], w: number, h: number): BBox {
+  let minX = w;
+  let maxX = 0;
+  let minY = h;
+  let maxY = 0;
+  let area = 0;
+  for (const c of comps) {
+    minX = Math.min(minX, c.minX);
+    maxX = Math.max(maxX, c.maxX);
+    minY = Math.min(minY, c.minY);
+    maxY = Math.max(maxY, c.maxY);
+    area += c.area;
+  }
+  return { minX, maxX, minY, maxY, area };
+}
+
+function groupLegacyComponents(comps: Component[], w: number, h: number): BBox[] {
+  const groups: BBox[] = [];
+  const used = new Set<number>();
+  const ordered = [...comps].sort((a, b) => b.area - a.area);
+  for (const c of ordered) {
+    if (used.has(c.id)) continue;
+    const members = [c];
+    used.add(c.id);
+    const cx = c.sumX;
+    const cy = c.sumY;
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const d of ordered) {
+        if (used.has(d.id)) continue;
+        if (Math.abs(d.sumX - cx) > w * 0.22 || Math.abs(d.sumY - cy) > h * 0.32) continue;
+        const current = mergeGroup(members, w, h);
+        const gap = gaps(current, d);
+        const mergedW = Math.max(current.maxX, d.maxX) - Math.min(current.minX, d.minX) + 1;
+        const mergedH = Math.max(current.maxY, d.maxY) - Math.min(current.minY, d.minY) + 1;
+        if (mergedW > w * 0.6 || mergedH > h * 0.92) continue;
+        if (gap.x <= Math.max(8, w * 0.18) && gap.y <= Math.max(6, h * 0.4)) {
+          members.push(d);
+          used.add(d.id);
+          grew = true;
+        }
+      }
+    }
+    groups.push(mergeGroup(members, w, h));
+  }
+  groups.sort((a, b) => b.area - a.area);
+  return groups;
+}
+
+/**
+ * Join pen-lift fragments before picking the digit box.
+ *
+ * A handwritten 1, 4, 6 or 7 is often written in two or three strokes. The
+ * legacy centroid test rejects a lower stem when it is far from the largest
+ * fragment, which turns a 6 into its bottom loop (read as 7/0) and a 1 into a
+ * hook (read as 7). This grouping uses bounding-box overlap and gap instead of
+ * centroid distance, then scores the resulting boxes for plausibility rather
+ * than choosing the biggest blob unconditionally.
+ */
+function groupMergedComponents(comps: Component[], w: number, h: number): BBox[] {
+  if (!comps.length) return [];
+  const parent = comps.map((_, index) => index);
+  const find = (index: number): number => {
+    let root = index;
+    while (parent[root] !== root) root = parent[root];
+    while (parent[index] !== index) {
+      const next = parent[index];
+      parent[index] = root;
+      index = next;
+    }
+    return root;
+  };
+  const union = (a: number, b: number) => {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) parent[rb] = ra;
+  };
+
+  const maxGapX = Math.max(8, w * 0.1);
+  const maxGapY = Math.max(8, h * 0.12);
+  for (let i = 0; i < comps.length; i++) {
+    for (let j = i + 1; j < comps.length; j++) {
+      const a = comps[i];
+      const b = comps[j];
+      const gap = gaps(a, b);
+      const mergedW = Math.max(a.maxX, b.maxX) - Math.min(a.minX, b.minX) + 1;
+      const mergedH = Math.max(a.maxY, b.maxY) - Math.min(a.minY, b.minY) + 1;
+      if (mergedW > w * 0.68 || mergedH > h * 0.94) continue;
+      const close = gap.x <= maxGapX && gap.y <= maxGapY;
+      const verticalSplit = gap.overlapX >= Math.min(3, w * 0.03) && gap.y <= h * 0.34 && gap.x <= w * 0.12;
+      const horizontalSplit = gap.overlapY >= Math.min(3, h * 0.04) && gap.x <= w * 0.14 && gap.y <= h * 0.14;
+      if (close || verticalSplit || horizontalSplit) union(i, j);
+    }
+  }
+
+  const buckets = new Map<number, Component[]>();
+  comps.forEach((component, index) => {
+    const root = find(index);
+    const bucket = buckets.get(root);
+    if (bucket) bucket.push(component);
+    else buckets.set(root, [component]);
+  });
+
+  const groupList = [...buckets.values()].map((members) => mergeGroup(members, w, h));
+  const scored = groupList.map((group) => {
+    const cw = group.maxX - group.minX + 1;
+    const ch = group.maxY - group.minY + 1;
+    const cx = (group.minX + group.maxX) / 2;
+    const cy = (group.minY + group.maxY) / 2;
+    const centerDistance = Math.hypot((cx - w / 2) / (w / 2), (cy - h / 2) / (h / 2));
+    const aspect = cw / ch;
+    let score = group.area;
+    if (ch < h * 0.28) score *= 0.35;
+    if (ch > h * 0.94) score *= 0.5;
+    if (cw < w * 0.06) score *= 0.35;
+    if (cw > w * 0.65) score *= 0.55;
+    if (aspect > 1.4 || aspect < 0.14) score *= 0.55;
+    score *= 1 - Math.min(0.4, centerDistance * 0.25);
+    if (
+      group.minX <= 1 ||
+      group.maxX >= w - 2 ||
+      group.minY <= 1 ||
+      group.maxY >= h - 2
+    ) {
+      score *= 0.72;
+    }
+    return { group, score };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  const best = scored[0]?.group;
+  const rest = scored.slice(1).map((item) => item.group);
+  rest.sort((a, b) => b.area - a.area);
+  return best ? [best, ...rest] : [];
 }
 
 /** Scale the selected ink group to 20x20 and place it by centre of mass in 28x28. */
