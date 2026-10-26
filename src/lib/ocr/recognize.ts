@@ -1,5 +1,10 @@
 import { predictMnist } from './cnn';
-import { extractCell, normalizeCell } from './preprocess';
+import {
+  extractCell,
+  normalizeCell,
+  type ExtractionOptions,
+  type NormalizeInfo,
+} from './preprocess';
 import {
   matchReference,
   shouldFlagReference,
@@ -17,6 +22,8 @@ export interface RecognitionOptions {
   referenceCorpus?: ReferenceCorpus | null;
   /** Stroke grouping mode. Defaults to the legacy path. */
   segmentation?: 'legacy' | 'merged';
+  /** Optional tuning for the measured preprocessing stages. */
+  extraction?: ExtractionOptions;
 }
 
 const ROTATION_ANGLES = [-8, 8] as const;
@@ -102,7 +109,10 @@ export function recognizeCell(
   row: number,
   options?: RecognitionOptions,
 ): CellResult {
-  const extraction = extractCell(cell, { grouping: options?.segmentation });
+  const extraction = extractCell(cell, {
+    grouping: options?.segmentation,
+    ...options?.extraction,
+  });
   const best = extraction.best;
   const tooDark = extraction.meanBackground < 45;
   const tooMuchDark = extraction.darkRatio > 0.25;
@@ -136,7 +146,8 @@ export function recognizeCell(
     };
   }
 
-  const norm = normalizeCell(extraction, best);
+  const normalizeInfo: NormalizeInfo = { contrastStretched: false, peak: 0 };
+  const norm = normalizeCell(extraction, best, 28, normalizeInfo);
   const base = predictMnist(norm);
   const baseScore = permittedScore(base.probabilities);
   if (!baseScore) {
@@ -172,8 +183,14 @@ export function recognizeCell(
   const tiny = bboxW < 8 || bboxH < 12;
   const huge = best.area > cell.width * cell.height * 0.32;
   const hugeBox = bboxW > cell.width * 0.65 && bboxH > cell.height * 0.7;
+  // A stretched cell is readable but its original ink was too faint for the
+  // confidence gate to be trusted unreviewed. Keep the predicted digit and
+  // crop, then let the teacher confirm it rather than auto-accepting it.
   const uncertain =
-    tiny || confidence < settings.confidenceThreshold || margin < settings.marginThreshold;
+    tiny ||
+    normalizeInfo.contrastStretched ||
+    confidence < settings.confidenceThreshold ||
+    margin < settings.marginThreshold;
 
   let state: CellResult['state'] =
     tooDark || tooMuchDark || huge || hugeBox

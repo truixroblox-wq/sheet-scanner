@@ -122,8 +122,8 @@ describe.skipIf(!hasReference)('full scanning pipeline on a photographed sheet',
     expect(scored.sets.A.score).toBe(12);
     expect(scored.sets.B.score).toBe(10);
     expect(scored.sets.C.score).toBe(6);
-    expect(scored.sets.D.score).toBe(8);
+    expect(scored.sets.D.score).toBe(9);
     expect(scored.sets.E.score).toBe(4);
-    expect(scored.total).toBe(40);
+    expect(scored.total).toBe(41);
   });
 });
