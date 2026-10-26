@@ -134,13 +134,13 @@ describe.skipIf(!hasSample)('validated confirmation gate', () => {
       });
     }
 
-    expect(accepted).toBe(38);
-    expect(flagged).toBe(22);
+    expect(accepted).toBe(35);
+    expect(flagged).toBe(25);
     expect(acceptedErrors).toBe(0);
-    expect(flaggedErrors).toBe(7);
+    expect(flaggedErrors).toBe(6);
   });
 
-  it('flags all seven known model misreads', () => {
+  it('flags all known model misreads', () => {
     const errors: string[] = [];
     for (const set of SET_IDS) {
       results[set].forEach((cell, index) => {
@@ -152,7 +152,7 @@ describe.skipIf(!hasSample)('validated confirmation gate', () => {
         }
       });
     }
-    expect(errors).toEqual(['B10', 'C1', 'C4', 'D5', 'E2', 'E10', 'E12']);
+    expect(errors).toEqual(['B10', 'C1', 'C4', 'E2', 'E10', 'E12']);
   });
 
   it('shows why the gate must stay above 95% confidence', () => {
@@ -169,9 +169,9 @@ describe.skipIf(!hasSample)('validated confirmation gate', () => {
     expect(scored.sets.A.score).toBe(12);
     expect(scored.sets.B.score).toBe(10);
     expect(scored.sets.C.score).toBe(6);
-    expect(scored.sets.D.score).toBe(8);
+    expect(scored.sets.D.score).toBe(9);
     expect(scored.sets.E.score).toBe(4);
-    expect(scored.total).toBe(40);
+    expect(scored.total).toBe(41);
     expect(DEFAULT_SETTINGS.confidenceThreshold).toBe(VALIDATED_CONFIDENCE_THRESHOLD);
     expect(DEFAULT_SETTINGS.marginThreshold).toBe(VALIDATED_MARGIN_THRESHOLD);
   });
@@ -189,7 +189,7 @@ describe.skipIf(!hasSample)('validated confirmation gate', () => {
       imageHash: '0000000000000000',
       quality: { meanLuminance: 200, blurScore: 300, warnings: [] },
     };
-    expect(scan.total).toBe(40);
+    expect(scan.total).toBe(41);
 
     for (const set of SET_IDS) {
       results[set].forEach((cell, index) => {

@@ -7,6 +7,7 @@ import type {
 } from '../types';
 import { SET_IDS } from '../types';
 import { countUnresolved } from '../lib/scoring';
+import { allScansReviewed, sortScansByNumber } from '../lib/review';
 import { ConfirmationPanel } from './ConfirmationPanel';
 import { ResultSummary } from './ResultSummary';
 import { ReviewView } from './ReviewView';
@@ -48,10 +49,14 @@ export function ScanView({
   onExport: () => void;
 }) {
   const [drag, setDrag] = useState(false);
+  const [queueOpen, setQueueOpen] = useState(true);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const resultRef = useRef<HTMLDivElement | null>(null);
 
   const currentId = currentScan?.id ?? null;
+  const orderedScans = sortScansByNumber(scans);
+  const orderedQueue = [...queue].sort((a, b) => a.scanNumber - b.scanNumber);
+  const reviewed = allScansReviewed(scans);
   useEffect(() => {
     if (!currentId) return;
     resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -207,16 +212,27 @@ export function ScanView({
                 <span className="muted">
                   {queue.filter((item) => item.status === 'done').length}/{queue.length} done
                 </span>
+                <button
+                  className="btn btn-ghost btn-sm queue-toggle"
+                  type="button"
+                  aria-expanded={queueOpen}
+                  aria-controls="scan-queue-body"
+                  onClick={() => setQueueOpen((open) => !open)}
+                >
+                  {queueOpen ? 'Hide queue' : 'Show queue'}
+                </button>
               </div>
-              <div className="card-pad queue">
-                {queue.map((item) => (
-                  <div className="queue-row" key={item.id}>
-                    <span className="scan-no">#{item.scanNumber}</span>
-                    <span className="muted">{item.message ?? 'Answer sheet'}</span>
-                    <span className={`status ${item.status}`}>{item.status}</span>
-                  </div>
-                ))}
-              </div>
+              {queueOpen && (
+                <div className="card-pad queue" id="scan-queue-body">
+                  {orderedQueue.map((item) => (
+                    <div className="queue-row" key={item.id}>
+                      <span className="scan-no">#{item.scanNumber}</span>
+                      <span className="muted">{item.message ?? 'Answer sheet'}</span>
+                      <span className={`status ${item.status}`}>{item.status}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           )}
 
@@ -233,46 +249,59 @@ export function ScanView({
                   Results appear here. Starting a new scan clears the previous session.
                 </div>
               ) : (
-                <div className="batch-list">
-                  {scans.map((scan) => {
-                    const pending = countUnresolved(scan);
-                    return (
-                      <button
-                        className={`batch-row ${currentScan?.id === scan.id ? 'active' : ''} ${
-                          pending > 0 ? 'pending' : ''
-                        }`}
-                        key={scan.id}
-                        onClick={() => onSelectScan(scan.id)}
-                      >
-                        <span className="batch-no">#{scan.scanNumber}</span>
-                        <span>
-                          <div className="batch-scores">
-                            {pending > 0
-                              ? `${pending} answer${pending === 1 ? '' : 's'} need confirmation`
-                              : SET_IDS.map((set) => `${set} ${scan.sets[set].score}`).join(' • ')}
-                          </div>
-                          <div className="tiny batch-time">
-                            {(scan.durationMs / 1000).toFixed(2)} s
-                            {scan.quality.warnings.length ? ' • quality warning' : ''}
-                          </div>
-                        </span>
-                        <span className={`batch-total ${pending > 0 ? 'pending' : ''}`}>
-                          {pending > 0 ? (
-                            <>
-                              Review
-                              <small>{pending} left</small>
-                            </>
-                          ) : (
-                            <>
-                              {scan.total}
-                              <small>/60</small>
-                            </>
-                          )}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                <>
+                  {reviewed && (
+                    <div className="review-complete" role="status">
+                      <span className="review-complete-mark" aria-hidden>
+                        ✓
+                      </span>
+                      <span>
+                        <strong>All scanned sheets reviewed</strong>
+                        <span>No flagged answers remain in this batch.</span>
+                      </span>
+                    </div>
+                  )}
+                  <div className="batch-list">
+                    {orderedScans.map((scan) => {
+                      const pending = countUnresolved(scan);
+                      return (
+                        <button
+                          className={`batch-row ${currentScan?.id === scan.id ? 'active' : ''} ${
+                            pending > 0 ? 'pending' : ''
+                          }`}
+                          key={scan.id}
+                          onClick={() => onSelectScan(scan.id)}
+                        >
+                          <span className="batch-no">#{scan.scanNumber}</span>
+                          <span>
+                            <div className="batch-scores">
+                              {pending > 0
+                                ? `${pending} answer${pending === 1 ? '' : 's'} need confirmation`
+                                : SET_IDS.map((set) => `${set} ${scan.sets[set].score}`).join(' • ')}
+                            </div>
+                            <div className="tiny batch-time">
+                              {(scan.durationMs / 1000).toFixed(2)} s
+                              {scan.quality.warnings.length ? ' • quality warning' : ''}
+                            </div>
+                          </span>
+                          <span className={`batch-total ${pending > 0 ? 'pending' : ''}`}>
+                            {pending > 0 ? (
+                              <>
+                                Review
+                                <small>{pending} left</small>
+                              </>
+                            ) : (
+                              <>
+                                {scan.total}
+                                <small>/60</small>
+                              </>
+                            )}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </div>
           </section>

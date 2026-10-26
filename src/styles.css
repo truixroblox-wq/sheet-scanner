@@ -577,6 +577,46 @@ button:disabled {
   line-height: 1.5;
 }
 
+.queue-toggle {
+  flex: none;
+}
+
+.review-complete {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid #b9d9c2;
+  border-radius: 12px;
+  background: var(--green-50);
+  color: var(--green-800);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.review-complete-mark {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--green-700);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.review-complete strong {
+  display: block;
+  font-size: 13px;
+}
+
+.review-complete span span {
+  color: var(--muted);
+}
+
 .batch-list {
   display: grid;
   gap: 8px;

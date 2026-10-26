@@ -162,14 +162,14 @@ describe.skipIf(!hasSample)('sample sheet recognition integration', () => {
   it('matches the fixed-crop regression baseline', () => {
     // samples/proto-warp.png is a synthetic layout fixture, not a hand-labelled
     // answer sheet. The verified reference-2 sheet is exercised in
-    // tests/validation.test.ts, which pins the 40/60 pre-confirmation score.
+    // tests/validation.test.ts, which pins the 41/60 pre-confirmation score.
     const scored = scoreScan(results, DEFAULT_KEY, 'wrong');
     expect(scored.sets.A.score).toBe(12);
     expect(scored.sets.B.score).toBe(10);
     expect(scored.sets.C.score).toBe(6);
-    expect(scored.sets.D.score).toBe(7);
+    expect(scored.sets.D.score).toBe(8);
     expect(scored.sets.E.score).toBe(4);
-    expect(scored.total).toBe(39);
+    expect(scored.total).toBe(40);
   });
 
   it('keeps high-confidence readings stable', () => {
@@ -231,11 +231,11 @@ describe('cell edge cases', () => {
     const result = recognizeCell(dark, settings, 1);
     expect(['answered', 'uncertain', 'blank', 'obstructed']).toContain(result.state);
     expect(result.digit == null || (result.digit >= 1 && result.digit <= 8)).toBe(true);
-    // A dark scan must not become a confidently wrong answer.
+    // A dark scan must not become a confidently wrong answer. A cell that
+    // needed the low-amplitude contrast stretch is intentionally flagged even
+    // when the CNN is confident, so an uncertain state is always acceptable.
     if (result.state === 'answered') {
       expect(result.confidence).toBeGreaterThanOrEqual(settings.confidenceThreshold);
-    } else if (result.digit != null) {
-      expect(result.confidence).toBeLessThan(settings.confidenceThreshold);
     }
   });
 

@@ -22,70 +22,70 @@
   },
   "all": {
     "cells": 479,
-    "correct": 435,
-    "accuracyPct": 90.81,
-    "autoAccepted": 322,
-    "autoAcceptRatePct": 67.22,
-    "autoAcceptedCorrect": 318,
-    "autoAcceptedPrecisionPct": 98.76,
-    "uncertain": 155,
+    "correct": 433,
+    "accuracyPct": 90.4,
+    "autoAccepted": 313,
+    "autoAcceptRatePct": 65.34,
+    "autoAcceptedCorrect": 310,
+    "autoAcceptedPrecisionPct": 99.04,
+    "uncertain": 164,
     "blank": 2,
     "obstructed": 0,
-    "highConfidenceErrors": 4,
-    "gatePassingErrors": 12
+    "highConfidenceErrors": 3,
+    "gatePassingErrors": 13
   },
   "dev": {
     "cells": 239,
-    "correct": 215,
-    "accuracyPct": 89.96,
-    "autoAccepted": 170,
-    "autoAcceptRatePct": 71.13,
-    "autoAcceptedCorrect": 166,
-    "autoAcceptedPrecisionPct": 97.65,
-    "uncertain": 67,
+    "correct": 212,
+    "accuracyPct": 88.7,
+    "autoAccepted": 165,
+    "autoAcceptRatePct": 69.04,
+    "autoAcceptedCorrect": 163,
+    "autoAcceptedPrecisionPct": 98.79,
+    "uncertain": 72,
     "blank": 2,
     "obstructed": 0,
-    "highConfidenceErrors": 4,
-    "gatePassingErrors": 10
+    "highConfidenceErrors": 2,
+    "gatePassingErrors": 8
   },
   "test": {
     "cells": 240,
-    "correct": 220,
-    "accuracyPct": 91.67,
-    "autoAccepted": 152,
-    "autoAcceptRatePct": 63.33,
-    "autoAcceptedCorrect": 152,
-    "autoAcceptedPrecisionPct": 100,
-    "uncertain": 88,
+    "correct": 221,
+    "accuracyPct": 92.08,
+    "autoAccepted": 148,
+    "autoAcceptRatePct": 61.67,
+    "autoAcceptedCorrect": 147,
+    "autoAcceptedPrecisionPct": 99.32,
+    "uncertain": 92,
     "blank": 0,
     "obstructed": 0,
-    "highConfidenceErrors": 0,
-    "gatePassingErrors": 2
+    "highConfidenceErrors": 1,
+    "gatePassingErrors": 5
   },
   "perSheet": {
     "S001": {
       "cells": 59,
-      "correct": 55,
-      "accuracyPct": 93.22,
-      "autoAccepted": 39,
-      "autoAcceptRatePct": 66.1,
-      "autoAcceptedCorrect": 39,
+      "correct": 53,
+      "accuracyPct": 89.83,
+      "autoAccepted": 38,
+      "autoAcceptRatePct": 64.41,
+      "autoAcceptedCorrect": 38,
       "autoAcceptedPrecisionPct": 100,
-      "uncertain": 18,
+      "uncertain": 19,
       "blank": 2,
       "obstructed": 0,
       "highConfidenceErrors": 0,
-      "gatePassingErrors": 2
+      "gatePassingErrors": 3
     },
     "S002": {
       "cells": 60,
       "correct": 59,
       "accuracyPct": 98.33,
-      "autoAccepted": 54,
-      "autoAcceptRatePct": 90,
-      "autoAcceptedCorrect": 54,
+      "autoAccepted": 53,
+      "autoAcceptRatePct": 88.33,
+      "autoAcceptedCorrect": 53,
       "autoAcceptedPrecisionPct": 100,
-      "uncertain": 6,
+      "uncertain": 7,
       "blank": 0,
       "obstructed": 0,
       "highConfidenceErrors": 0,
@@ -93,41 +93,41 @@
     },
     "S003": {
       "cells": 60,
-      "correct": 47,
-      "accuracyPct": 78.33,
-      "autoAccepted": 32,
-      "autoAcceptRatePct": 53.33,
-      "autoAcceptedCorrect": 29,
-      "autoAcceptedPrecisionPct": 90.63,
-      "uncertain": 28,
+      "correct": 45,
+      "accuracyPct": 75,
+      "autoAccepted": 30,
+      "autoAcceptRatePct": 50,
+      "autoAcceptedCorrect": 28,
+      "autoAcceptedPrecisionPct": 93.33,
+      "uncertain": 30,
       "blank": 0,
       "obstructed": 0,
-      "highConfidenceErrors": 3,
-      "gatePassingErrors": 5
+      "highConfidenceErrors": 2,
+      "gatePassingErrors": 3
     },
     "S004": {
       "cells": 60,
-      "correct": 54,
-      "accuracyPct": 90,
-      "autoAccepted": 45,
-      "autoAcceptRatePct": 75,
+      "correct": 55,
+      "accuracyPct": 91.67,
+      "autoAccepted": 44,
+      "autoAcceptRatePct": 73.33,
       "autoAcceptedCorrect": 44,
-      "autoAcceptedPrecisionPct": 97.78,
-      "uncertain": 15,
+      "autoAcceptedPrecisionPct": 100,
+      "uncertain": 16,
       "blank": 0,
       "obstructed": 0,
-      "highConfidenceErrors": 1,
-      "gatePassingErrors": 3
+      "highConfidenceErrors": 0,
+      "gatePassingErrors": 2
     },
     "S005": {
       "cells": 60,
-      "correct": 57,
-      "accuracyPct": 95,
-      "autoAccepted": 34,
-      "autoAcceptRatePct": 56.67,
-      "autoAcceptedCorrect": 34,
+      "correct": 58,
+      "accuracyPct": 96.67,
+      "autoAccepted": 29,
+      "autoAcceptRatePct": 48.33,
+      "autoAcceptedCorrect": 29,
       "autoAcceptedPrecisionPct": 100,
-      "uncertain": 26,
+      "uncertain": 31,
       "blank": 0,
       "obstructed": 0,
       "highConfidenceErrors": 0,
@@ -137,25 +137,25 @@
       "cells": 60,
       "correct": 48,
       "accuracyPct": 80,
-      "autoAccepted": 21,
-      "autoAcceptRatePct": 35,
-      "autoAcceptedCorrect": 21,
-      "autoAcceptedPrecisionPct": 100,
-      "uncertain": 39,
+      "autoAccepted": 23,
+      "autoAcceptRatePct": 38.33,
+      "autoAcceptedCorrect": 22,
+      "autoAcceptedPrecisionPct": 95.65,
+      "uncertain": 37,
       "blank": 0,
       "obstructed": 0,
-      "highConfidenceErrors": 0,
-      "gatePassingErrors": 1
+      "highConfidenceErrors": 1,
+      "gatePassingErrors": 4
     },
     "S007": {
       "cells": 60,
       "correct": 55,
       "accuracyPct": 91.67,
-      "autoAccepted": 45,
-      "autoAcceptRatePct": 75,
-      "autoAcceptedCorrect": 45,
+      "autoAccepted": 43,
+      "autoAcceptRatePct": 71.67,
+      "autoAcceptedCorrect": 43,
       "autoAcceptedPrecisionPct": 100,
-      "uncertain": 15,
+      "uncertain": 17,
       "blank": 0,
       "obstructed": 0,
       "highConfidenceErrors": 0,
@@ -165,11 +165,11 @@
       "cells": 60,
       "correct": 60,
       "accuracyPct": 100,
-      "autoAccepted": 52,
-      "autoAcceptRatePct": 86.67,
-      "autoAcceptedCorrect": 52,
+      "autoAccepted": 53,
+      "autoAcceptRatePct": 88.33,
+      "autoAcceptedCorrect": 53,
       "autoAcceptedPrecisionPct": 100,
-      "uncertain": 8,
+      "uncertain": 7,
       "blank": 0,
       "obstructed": 0,
       "highConfidenceErrors": 0,
@@ -179,55 +179,55 @@
   "perSet": {
     "A": {
       "cells": 95,
-      "correct": 88,
-      "accuracyPct": 92.63,
-      "autoAccepted": 65,
-      "autoAcceptRatePct": 68.42,
-      "autoAcceptedCorrect": 64,
-      "autoAcceptedPrecisionPct": 98.46,
-      "uncertain": 30,
+      "correct": 85,
+      "accuracyPct": 89.47,
+      "autoAccepted": 60,
+      "autoAcceptRatePct": 63.16,
+      "autoAcceptedCorrect": 60,
+      "autoAcceptedPrecisionPct": 100,
+      "uncertain": 35,
       "blank": 0,
       "obstructed": 0,
-      "highConfidenceErrors": 1,
-      "gatePassingErrors": 3
+      "highConfidenceErrors": 0,
+      "gatePassingErrors": 4
     },
     "B": {
       "cells": 96,
       "correct": 87,
       "accuracyPct": 90.63,
-      "autoAccepted": 64,
-      "autoAcceptRatePct": 66.67,
+      "autoAccepted": 63,
+      "autoAcceptRatePct": 65.63,
       "autoAcceptedCorrect": 63,
-      "autoAcceptedPrecisionPct": 98.44,
-      "uncertain": 31,
+      "autoAcceptedPrecisionPct": 100,
+      "uncertain": 32,
       "blank": 1,
       "obstructed": 0,
-      "highConfidenceErrors": 1,
-      "gatePassingErrors": 4
+      "highConfidenceErrors": 0,
+      "gatePassingErrors": 3
     },
     "C": {
       "cells": 96,
       "correct": 85,
       "accuracyPct": 88.54,
-      "autoAccepted": 70,
-      "autoAcceptRatePct": 72.92,
+      "autoAccepted": 71,
+      "autoAcceptRatePct": 73.96,
       "autoAcceptedCorrect": 68,
-      "autoAcceptedPrecisionPct": 97.14,
-      "uncertain": 26,
+      "autoAcceptedPrecisionPct": 95.77,
+      "uncertain": 25,
       "blank": 0,
       "obstructed": 0,
-      "highConfidenceErrors": 2,
-      "gatePassingErrors": 2
+      "highConfidenceErrors": 3,
+      "gatePassingErrors": 4
     },
     "D": {
       "cells": 96,
-      "correct": 87,
-      "accuracyPct": 90.63,
-      "autoAccepted": 60,
-      "autoAcceptRatePct": 62.5,
-      "autoAcceptedCorrect": 60,
+      "correct": 88,
+      "accuracyPct": 91.67,
+      "autoAccepted": 63,
+      "autoAcceptRatePct": 65.63,
+      "autoAcceptedCorrect": 63,
       "autoAcceptedPrecisionPct": 100,
-      "uncertain": 36,
+      "uncertain": 33,
       "blank": 0,
       "obstructed": 0,
       "highConfidenceErrors": 0,
@@ -237,15 +237,15 @@
       "cells": 96,
       "correct": 88,
       "accuracyPct": 91.67,
-      "autoAccepted": 63,
-      "autoAcceptRatePct": 65.63,
-      "autoAcceptedCorrect": 63,
+      "autoAccepted": 56,
+      "autoAcceptRatePct": 58.33,
+      "autoAcceptedCorrect": 56,
       "autoAcceptedPrecisionPct": 100,
-      "uncertain": 32,
+      "uncertain": 39,
       "blank": 1,
       "obstructed": 0,
       "highConfidenceErrors": 0,
-      "gatePassingErrors": 2
+      "gatePassingErrors": 1
     }
   },
   "perDigit": {
@@ -253,53 +253,53 @@
       "cells": 70,
       "correct": 61,
       "accuracyPct": 87.14,
-      "autoAccepted": 48,
-      "autoAcceptRatePct": 68.57,
+      "autoAccepted": 47,
+      "autoAcceptRatePct": 67.14,
       "autoAcceptedCorrect": 46,
-      "autoAcceptedPrecisionPct": 95.83,
-      "uncertain": 20,
+      "autoAcceptedPrecisionPct": 97.87,
+      "uncertain": 21,
       "blank": 2,
       "obstructed": 0,
-      "highConfidenceErrors": 2,
-      "gatePassingErrors": 2
+      "highConfidenceErrors": 1,
+      "gatePassingErrors": 3
     },
     "2": {
       "cells": 69,
       "correct": 63,
       "accuracyPct": 91.3,
-      "autoAccepted": 42,
-      "autoAcceptRatePct": 60.87,
-      "autoAcceptedCorrect": 41,
-      "autoAcceptedPrecisionPct": 97.62,
-      "uncertain": 27,
+      "autoAccepted": 45,
+      "autoAcceptRatePct": 65.22,
+      "autoAcceptedCorrect": 43,
+      "autoAcceptedPrecisionPct": 95.56,
+      "uncertain": 24,
       "blank": 0,
       "obstructed": 0,
-      "highConfidenceErrors": 1,
+      "highConfidenceErrors": 2,
       "gatePassingErrors": 4
     },
     "3": {
       "cells": 73,
-      "correct": 63,
-      "accuracyPct": 86.3,
-      "autoAccepted": 46,
-      "autoAcceptRatePct": 63.01,
-      "autoAcceptedCorrect": 45,
-      "autoAcceptedPrecisionPct": 97.83,
-      "uncertain": 27,
+      "correct": 64,
+      "accuracyPct": 87.67,
+      "autoAccepted": 44,
+      "autoAcceptRatePct": 60.27,
+      "autoAcceptedCorrect": 44,
+      "autoAcceptedPrecisionPct": 100,
+      "uncertain": 29,
       "blank": 0,
       "obstructed": 0,
-      "highConfidenceErrors": 1,
+      "highConfidenceErrors": 0,
       "gatePassingErrors": 3
     },
     "4": {
       "cells": 62,
-      "correct": 56,
-      "accuracyPct": 90.32,
-      "autoAccepted": 40,
-      "autoAcceptRatePct": 64.52,
-      "autoAcceptedCorrect": 40,
+      "correct": 54,
+      "accuracyPct": 87.1,
+      "autoAccepted": 37,
+      "autoAcceptRatePct": 59.68,
+      "autoAcceptedCorrect": 37,
       "autoAcceptedPrecisionPct": 100,
-      "uncertain": 22,
+      "uncertain": 25,
       "blank": 0,
       "obstructed": 0,
       "highConfidenceErrors": 0,
@@ -307,13 +307,13 @@
     },
     "5": {
       "cells": 64,
-      "correct": 60,
-      "accuracyPct": 93.75,
-      "autoAccepted": 50,
-      "autoAcceptRatePct": 78.13,
-      "autoAcceptedCorrect": 50,
+      "correct": 61,
+      "accuracyPct": 95.31,
+      "autoAccepted": 48,
+      "autoAcceptRatePct": 75,
+      "autoAcceptedCorrect": 48,
       "autoAcceptedPrecisionPct": 100,
-      "uncertain": 14,
+      "uncertain": 16,
       "blank": 0,
       "obstructed": 0,
       "highConfidenceErrors": 0,
@@ -321,41 +321,41 @@
     },
     "6": {
       "cells": 63,
-      "correct": 62,
-      "accuracyPct": 98.41,
-      "autoAccepted": 46,
-      "autoAcceptRatePct": 73.02,
-      "autoAcceptedCorrect": 46,
+      "correct": 61,
+      "accuracyPct": 96.83,
+      "autoAccepted": 45,
+      "autoAcceptRatePct": 71.43,
+      "autoAcceptedCorrect": 45,
       "autoAcceptedPrecisionPct": 100,
-      "uncertain": 17,
-      "blank": 0,
-      "obstructed": 0,
-      "highConfidenceErrors": 0,
-      "gatePassingErrors": 0
-    },
-    "7": {
-      "cells": 41,
-      "correct": 39,
-      "accuracyPct": 95.12,
-      "autoAccepted": 34,
-      "autoAcceptRatePct": 82.93,
-      "autoAcceptedCorrect": 34,
-      "autoAcceptedPrecisionPct": 100,
-      "uncertain": 7,
+      "uncertain": 18,
       "blank": 0,
       "obstructed": 0,
       "highConfidenceErrors": 0,
       "gatePassingErrors": 1
     },
+    "7": {
+      "cells": 41,
+      "correct": 39,
+      "accuracyPct": 95.12,
+      "autoAccepted": 33,
+      "autoAcceptRatePct": 80.49,
+      "autoAcceptedCorrect": 33,
+      "autoAcceptedPrecisionPct": 100,
+      "uncertain": 8,
+      "blank": 0,
+      "obstructed": 0,
+      "highConfidenceErrors": 0,
+      "gatePassingErrors": 0
+    },
     "8": {
       "cells": 37,
-      "correct": 31,
-      "accuracyPct": 83.78,
-      "autoAccepted": 16,
-      "autoAcceptRatePct": 43.24,
-      "autoAcceptedCorrect": 16,
+      "correct": 30,
+      "accuracyPct": 81.08,
+      "autoAccepted": 14,
+      "autoAcceptRatePct": 37.84,
+      "autoAcceptedCorrect": 14,
       "autoAcceptedPrecisionPct": 100,
-      "uncertain": 21,
+      "uncertain": 23,
       "blank": 0,
       "obstructed": 0,
       "highConfidenceErrors": 0,
@@ -363,6 +363,26 @@
     }
   },
   "errors": [
+    {
+      "sheet": "S001",
+      "set": "A",
+      "row": 1,
+      "predicted": 2,
+      "actual": 4,
+      "state": "uncertain",
+      "confidence": 0.4216,
+      "margin": 0.1214
+    },
+    {
+      "sheet": "S001",
+      "set": "A",
+      "row": 7,
+      "predicted": 7,
+      "actual": 6,
+      "state": "uncertain",
+      "confidence": 0.9995,
+      "margin": 0.9991
+    },
     {
       "sheet": "S001",
       "set": "B",
@@ -410,8 +430,8 @@
       "predicted": 2,
       "actual": 8,
       "state": "uncertain",
-      "confidence": 0.8435,
-      "margin": 0.6889
+      "confidence": 0.6223,
+      "margin": 0.2578
     },
     {
       "sheet": "S003",
@@ -420,28 +440,38 @@
       "predicted": 7,
       "actual": 2,
       "state": "uncertain",
-      "confidence": 0.9857,
-      "margin": 0.9719
+      "confidence": 0.8671,
+      "margin": 0.8108
     },
     {
       "sheet": "S003",
       "set": "A",
       "row": 9,
-      "predicted": 5,
+      "predicted": 2,
       "actual": 7,
       "state": "uncertain",
-      "confidence": 0.5743,
-      "margin": 0.3275
+      "confidence": 0.5001,
+      "margin": 0.2229
+    },
+    {
+      "sheet": "S003",
+      "set": "A",
+      "row": 11,
+      "predicted": 6,
+      "actual": 4,
+      "state": "uncertain",
+      "confidence": 0.7254,
+      "margin": 0.6214
     },
     {
       "sheet": "S003",
       "set": "B",
       "row": 3,
-      "predicted": 7,
+      "predicted": 2,
       "actual": 1,
-      "state": "answered",
-      "confidence": 0.9911,
-      "margin": 0.9853
+      "state": "uncertain",
+      "confidence": 0.5911,
+      "margin": 0.2465
     },
     {
       "sheet": "S003",
@@ -451,7 +481,7 @@
       "actual": 2,
       "state": "uncertain",
       "confidence": 1,
-      "margin": 0.9999
+      "margin": 1
     },
     {
       "sheet": "S003",
@@ -470,8 +500,8 @@
       "predicted": 7,
       "actual": 2,
       "state": "answered",
-      "confidence": 0.9929,
-      "margin": 0.9867
+      "confidence": 0.9962,
+      "margin": 0.9927
     },
     {
       "sheet": "S003",
@@ -480,8 +510,18 @@
       "predicted": 2,
       "actual": 3,
       "state": "uncertain",
-      "confidence": 0.5891,
-      "margin": 0.2158
+      "confidence": 0.5754,
+      "margin": 0.2513
+    },
+    {
+      "sheet": "S003",
+      "set": "C",
+      "row": 4,
+      "predicted": 2,
+      "actual": 8,
+      "state": "uncertain",
+      "confidence": 0.6746,
+      "margin": 0.354
     },
     {
       "sheet": "S003",
@@ -490,8 +530,8 @@
       "predicted": 6,
       "actual": 4,
       "state": "uncertain",
-      "confidence": 0.7861,
-      "margin": 0.6132
+      "confidence": 0.6426,
+      "margin": 0.5096
     },
     {
       "sheet": "S003",
@@ -510,8 +550,8 @@
       "predicted": 6,
       "actual": 4,
       "state": "uncertain",
-      "confidence": 0.8991,
-      "margin": 0.8098
+      "confidence": 0.9302,
+      "margin": 0.874
     },
     {
       "sheet": "S003",
@@ -520,8 +560,8 @@
       "predicted": 2,
       "actual": 6,
       "state": "uncertain",
-      "confidence": 0.6898,
-      "margin": 0.3969
+      "confidence": 0.6893,
+      "margin": 0.3956
     },
     {
       "sheet": "S003",
@@ -549,9 +589,9 @@
       "row": 6,
       "predicted": 5,
       "actual": 3,
-      "state": "answered",
-      "confidence": 0.9999,
-      "margin": 0.9998
+      "state": "uncertain",
+      "confidence": 0.9996,
+      "margin": 0.9992
     },
     {
       "sheet": "S004",
@@ -575,16 +615,6 @@
     },
     {
       "sheet": "S004",
-      "set": "C",
-      "row": 3,
-      "predicted": 5,
-      "actual": 3,
-      "state": "uncertain",
-      "confidence": 0.5392,
-      "margin": 0.1501
-    },
-    {
-      "sheet": "S004",
       "set": "D",
       "row": 7,
       "predicted": 1,
@@ -600,8 +630,8 @@
       "predicted": 8,
       "actual": 7,
       "state": "uncertain",
-      "confidence": 0.9725,
-      "margin": 0.9553
+      "confidence": 0.9148,
+      "margin": 0.8565
     },
     {
       "sheet": "S005",
@@ -610,8 +640,8 @@
       "predicted": 7,
       "actual": 3,
       "state": "uncertain",
-      "confidence": 0.6433,
-      "margin": 0.3136
+      "confidence": 0.5791,
+      "margin": 0.1935
     },
     {
       "sheet": "S005",
@@ -624,24 +654,14 @@
       "margin": 0.3981
     },
     {
-      "sheet": "S005",
-      "set": "D",
-      "row": 5,
-      "predicted": 2,
-      "actual": 8,
-      "state": "uncertain",
-      "confidence": 0.3894,
-      "margin": 0.0134
-    },
-    {
       "sheet": "S006",
       "set": "A",
       "row": 3,
       "predicted": 7,
       "actual": 1,
       "state": "uncertain",
-      "confidence": 0.9174,
-      "margin": 0.8595
+      "confidence": 0.991,
+      "margin": 0.9821
     },
     {
       "sheet": "S006",
@@ -650,8 +670,8 @@
       "predicted": 7,
       "actual": 4,
       "state": "uncertain",
-      "confidence": 0.7274,
-      "margin": 0.6539
+      "confidence": 0.858,
+      "margin": 0.8181
     },
     {
       "sheet": "S006",
@@ -660,8 +680,8 @@
       "predicted": 7,
       "actual": 1,
       "state": "uncertain",
-      "confidence": 0.4931,
-      "margin": 0.2084
+      "confidence": 0.5992,
+      "margin": 0.3149
     },
     {
       "sheet": "S006",
@@ -670,8 +690,8 @@
       "predicted": 1,
       "actual": 4,
       "state": "uncertain",
-      "confidence": 0.9785,
-      "margin": 0.9652
+      "confidence": 0.9886,
+      "margin": 0.9817
     },
     {
       "sheet": "S006",
@@ -690,8 +710,8 @@
       "predicted": 7,
       "actual": 1,
       "state": "uncertain",
-      "confidence": 0.8524,
-      "margin": 0.7188
+      "confidence": 0.9814,
+      "margin": 0.965
     },
     {
       "sheet": "S006",
@@ -709,9 +729,9 @@
       "row": 12,
       "predicted": 4,
       "actual": 2,
-      "state": "uncertain",
-      "confidence": 0.8334,
-      "margin": 0.7322
+      "state": "answered",
+      "confidence": 0.9808,
+      "margin": 0.9657
     },
     {
       "sheet": "S006",
@@ -720,8 +740,18 @@
       "predicted": 2,
       "actual": 4,
       "state": "uncertain",
-      "confidence": 0.7881,
-      "margin": 0.6806
+      "confidence": 0.6133,
+      "margin": 0.3357
+    },
+    {
+      "sheet": "S006",
+      "set": "D",
+      "row": 5,
+      "predicted": 3,
+      "actual": 8,
+      "state": "uncertain",
+      "confidence": 0.8157,
+      "margin": 0.7071
     },
     {
       "sheet": "S006",
@@ -730,18 +760,8 @@
       "predicted": 3,
       "actual": 5,
       "state": "uncertain",
-      "confidence": 0.5494,
-      "margin": 0.0988
-    },
-    {
-      "sheet": "S006",
-      "set": "D",
-      "row": 8,
-      "predicted": 2,
-      "actual": 5,
-      "state": "uncertain",
-      "confidence": 0.4269,
-      "margin": 0.0168
+      "confidence": 0.5289,
+      "margin": 0.0577
     },
     {
       "sheet": "S006",
@@ -750,8 +770,8 @@
       "predicted": 3,
       "actual": 5,
       "state": "uncertain",
-      "confidence": 0.7836,
-      "margin": 0.5693
+      "confidence": 0.7412,
+      "margin": 0.4838
     },
     {
       "sheet": "S007",
@@ -807,10 +827,10 @@
   "timing": {
     "scope": "rectified table -> detection/crop + 60 recognitions; warm, excludes JPEG decode and model load",
     "sheetCount": 8,
-    "totalMs": 2289,
-    "meanMs": 286,
-    "medianMs": 278,
-    "minMs": 243,
-    "maxMs": 356
+    "totalMs": 2388,
+    "meanMs": 299,
+    "medianMs": 296,
+    "minMs": 246,
+    "maxMs": 369
   }
 }

@@ -16,6 +16,7 @@ import {
   resetKey,
 } from './lib/scoring';
 import { scanSheet } from './lib/vision/scan';
+import { nextScanNeedingReview } from './lib/review';
 import type {
   AnswerKey,
   AppSettings,
@@ -278,6 +279,24 @@ export default function App() {
   const handleCorrect = useCallback(
     (set: SetId, row: number, digit: number | null) => {
       if (!currentId) return;
+      const active = scoredScans.find((scan) => scan.id === currentId);
+      if (!active) return;
+
+      const pendingBefore = countUnresolved(active);
+      const corrected = correctCell(
+        active,
+        set,
+        row,
+        digit,
+        keyRef.current,
+        settingsRef.current.blankPolicy,
+        settingsRef.current,
+      );
+
+      // Save the individual correction immediately, then advance only when the
+      // whole current sheet has transitioned from unresolved to resolved.
+      // Selecting an already-resolved sheet or making an optional correction on
+      // it leaves the reviewer exactly where they are.
       setScans((previous) => {
         const next = previous.map((scan) =>
           scan.id === currentId
@@ -295,8 +314,23 @@ export default function App() {
         scansRef.current = next;
         return next;
       });
+
+      if (pendingBefore > 0 && countUnresolved(corrected) === 0) {
+        const next = nextScanNeedingReview(
+          scoredScans.map((scan) => (scan.id === active.id ? corrected : scan)),
+          active.scanNumber,
+        );
+        if (next) {
+          setCurrentId(next.id);
+          setNotice(
+            `Sheet #${active.scanNumber} reviewed. Opening sheet #${next.scanNumber} — the next one needing confirmation.`,
+          );
+        } else {
+          setNotice('All scanned sheets are fully reviewed.');
+        }
+      }
     },
-    [currentId],
+    [currentId, scoredScans],
   );
 
   const handleDelete = useCallback(() => {

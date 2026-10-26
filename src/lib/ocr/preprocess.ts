@@ -38,6 +38,8 @@ export interface CellExtraction {
   components: Component[];
   threshold: number;
   meanBackground: number;
+  /** 99th-percentile positive contrast; a robust estimate of the ink peak. */
+  contrastPeak: number;
 }
 
 export interface ExtractionOptions {
@@ -47,6 +49,13 @@ export interface ExtractionOptions {
    * the digit box. The merged mode is opt-in so both can be measured.
    */
   grouping?: 'legacy' | 'merged';
+  /** Absolute minimum ink contrast. Defaults to 3/255. */
+  thresholdFloor?: number;
+  /**
+   * Fraction of the robust contrast peak used as the ink threshold. Defaults
+   * to 0.12, capped so a dark printed edge cannot suppress real handwriting.
+   */
+  thresholdFraction?: number;
 }
 
 function boxBlur(gray: Float32Array, w: number, h: number, radius: number): Float32Array {
@@ -108,7 +117,34 @@ export function extractCell(cell: ImageData, options: ExtractionOptions = {}): C
   }
 
   const meanBackground = bgSum / (w * h);
-  const threshold = Math.max(7, meanBackground * 0.05);
+  const contrastHistogram = new Uint32Array(256);
+  let positiveContrast = 0;
+  for (let i = 0; i < w * h; i++) {
+    if (contrast[i] > 0) {
+      contrastHistogram[Math.min(255, Math.floor(contrast[i]))]++;
+      positiveContrast++;
+    }
+  }
+  let contrastPeak = 0;
+  if (positiveContrast) {
+    const cutoff = Math.max(1, positiveContrast * 0.01);
+    let seen = 0;
+    for (let value = 255; value >= 0; value--) {
+      seen += contrastHistogram[value];
+      if (seen >= cutoff) {
+        contrastPeak = value;
+        break;
+      }
+    }
+  }
+  // Faint pencil reduces the whole contrast range, while a clean mark has a
+  // much higher peak. Scaling the threshold to the cell's own contrast peak
+  // keeps clean cells conservative and lets faint cells keep their light
+  // strokes, without the noise sensitivity of a fixed low threshold.
+  const threshold = Math.max(
+    options.thresholdFloor ?? 3,
+    Math.min(8, contrastPeak * (options.thresholdFraction ?? 0.12)),
+  );
   const darkThreshold = meanBackground - Math.max(20, meanBackground * 0.18);
   let darkCount = 0;
   for (let i = 0; i < w * h; i++) {
@@ -230,6 +266,7 @@ export function extractCell(cell: ImageData, options: ExtractionOptions = {}): C
     components,
     threshold,
     meanBackground,
+    contrastPeak,
   };
 }
 
@@ -378,8 +415,20 @@ function groupMergedComponents(comps: Component[], w: number, h: number): BBox[]
   return best ? [best, ...rest] : [];
 }
 
+export interface NormalizeInfo {
+  /** True when the cell needed the low-amplitude contrast stretch. */
+  contrastStretched: boolean;
+  /** Robust peak amplitude before the stretch. */
+  peak: number;
+}
+
 /** Scale the selected ink group to 20x20 and place it by centre of mass in 28x28. */
-export function normalizeCell(extraction: CellExtraction, bbox: BBox, outSize = 28): Float32Array {
+export function normalizeCell(
+  extraction: CellExtraction,
+  bbox: BBox,
+  outSize = 28,
+  info?: NormalizeInfo,
+): Float32Array {
   const { inkFloat, width: w } = extraction;
   const { minX, maxX, minY, maxY } = bbox;
   const cw = maxX - minX + 1;
@@ -404,6 +453,27 @@ export function normalizeCell(extraction: CellExtraction, bbox: BBox, outSize = 
         (inkFloat[y1 * w + x0] * (1 - fx) + inkFloat[y1 * w + x1] * fx) * fy;
       small[y * dw + x] = Math.max(0, Math.min(1, v));
     }
+  }
+
+  // Faint pencil and low-contrast photos produce the same stroke geometry at a
+  // much lower ink amplitude. The CNN was trained on high-contrast digits, so
+  // stretch such cells before centring. The stretch is a scalar contrast
+  // transform: it cannot move, crop, or reshape a stroke. Decisive cells are
+  // left untouched to keep the validated clean-sheet readings stable.
+  const amplitudes = Array.from(small).filter((value) => value > 0).sort((a, b) => a - b);
+  const peak = amplitudes.length
+    ? amplitudes[Math.min(amplitudes.length - 1, Math.floor((amplitudes.length - 1) * 0.99))]
+    : 0;
+  const contrastStretched = peak > 0.05 && peak < 0.7;
+  if (contrastStretched) {
+    const gain = 1 / peak;
+    for (let i = 0; i < small.length; i++) {
+      small[i] = Math.pow(Math.min(1, small[i] * gain), 0.78);
+    }
+  }
+  if (info) {
+    info.peak = peak;
+    info.contrastStretched = contrastStretched;
   }
 
   let mass = 0;
